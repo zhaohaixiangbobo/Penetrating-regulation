@@ -2,12 +2,12 @@ import { defineConfig } from '@umijs/max';
 
 export default defineConfig({
     npmClient: 'npm',
-    title: '审计监管系统',
+    title: '穿透式监督查询系统',
     antd: {
         configProvider: {},
     },
     layout: {
-        title: '审计监管系统',
+        title: '穿透式监督查询系统',
         locale: false,
     },
     request: {},

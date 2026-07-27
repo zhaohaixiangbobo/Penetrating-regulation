@@ -32,7 +32,7 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="审计监管系统", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="穿透式监督查询系统", version="0.1.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,

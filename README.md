@@ -1,4 +1,4 @@
-# 审计监管系统
+# 穿透式监督查询系统
 
 前后端分离的审计查询平台，基于 **FastAPI + StarRocks + UmiJS 4 + Ant Design Pro**。
 

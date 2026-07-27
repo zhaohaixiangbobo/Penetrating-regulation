@@ -80,13 +80,13 @@ const doLogout = () => {
 
 export const layout: RunTimeLayoutConfig = ({ initialState }) => {
     return {
-        title: '审计监管系统',
+        title: '穿透式监督查询系统',
         logo: false,
         layout: 'side',
         fixedHeader: true,
         fixSiderbar: true,
         siderWidth: 220,
-        // 自定义 sider 顶部标题：展开时「审计监管系统」居中放大；折叠时显示「审计」两字
+        // 自定义 sider 顶部标题：展开时「穿透式监督查询系统」居中放大；折叠时显示「穿透」两字
         menuHeaderRender: (_logo, _title, props) => {
             const collapsed = (props as any)?.collapsed;
             return (
@@ -105,7 +105,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState }) => {
                         userSelect: 'none',
                     }}
                 >
-                    {collapsed ? '审计' : '审计监管系统'}
+                    {collapsed ? '穿透' : '穿透式监督查询系统'}
                 </div>
             );
         },

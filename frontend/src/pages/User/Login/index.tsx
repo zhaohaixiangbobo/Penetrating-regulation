@@ -33,8 +33,8 @@ export default function LoginPage() {
             <div className={`${styles.dot} ${styles.dot2}`} />
             <div className={styles.loginBox}>
                 <div className={styles.card}>
-                    <div className={styles.title}>审计监管系统</div>
-                    <div className={styles.subtitle}>AUDIT MONITORING PLATFORM</div>
+                    <div className={styles.title}>穿透式监督查询系统</div>
+                    <div className={styles.subtitle}>PENETRATING SUPERVISION QUERY SYSTEM</div>
                     <Form layout="vertical" onFinish={onFinish} autoComplete="off" requiredMark={false}>
                         <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
                             <Input size="large" prefix={<UserOutlined />} placeholder="用户名" />
@@ -48,7 +48,7 @@ export default function LoginPage() {
                             </Button>
                         </Form.Item>
                     </Form>
-                    <div className={styles.footer}>© {new Date().getFullYear()} 审计监管平台</div>
+                    <div className={styles.footer}>© {new Date().getFullYear()} 穿透式监督查询系统</div>
                 </div>
             </div>
         </div>
