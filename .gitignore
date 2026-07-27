@@ -1,0 +1,48 @@
+# ========================
+# Python 后端
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+.pytest_cache/
+venv/
+.venv/
+
+# 环境变量（含密码，禁止上传）
+backend/.env
+
+# 运行时数据（SQLite 数据库）
+backend/data/
+
+# ========================
+# 前端 Node.js
+# ========================
+node_modules/
+frontend/dist/
+frontend/src/.umi/
+frontend/src/.umi-production/
+frontend/src/.umi-test/
+*.log
+
+# ========================
+# IDE / 编辑器
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ========================
+# 操作系统
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================
+# Qoder / AI 工具缓存
+# ========================
+.qoder/

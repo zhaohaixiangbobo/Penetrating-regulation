@@ -1,0 +1,236 @@
+/* ============================================================
+   全局质感优化
+   ============================================================ */
+
+/* 字体渲染更清晰（macOS / Windows） */
+html,
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* 内容区浅灰底，衬托白色卡片（ProLayout 内容容器） */
+.ant-pro-layout .ant-pro-content {
+    background: #f1f5f9;
+}
+
+/* ============================================================
+   侧边栏全区强制深色（防止 antd ConfigProvider colorBgContainer 透出）
+   覆盖原生标题/logo 区域的白色背景
+   ============================================================ */
+.ant-layout-sider,
+.ant-layout-sider * {
+    background-color: inherit;
+}
+
+.ant-layout-sider {
+    background: #0f172a !important;
+}
+
+/* logo/标题区域确保深色（menuHeaderRender 自定义节点也生效） */
+.ant-pro-sider-logo,
+.ant-pro-sider .ant-pro-sider-logo,
+.ant-pro-sider-collapsed-button,
+.ant-pro-sider .ant-pro-sider-collapsed-button {
+    background: #0f172a !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.ant-pro-sider-logo h1,
+.ant-pro-sider-logo a,
+.ant-pro-sider-logo span,
+.ant-pro-sider-logo div {
+    color: #ffffff !important;
+}
+
+/* ============================================================
+   徧道导航字体层级：父组标题 > 子菜单项
+   父组： .ant-menu-submenu-title  (如「审计查询」)
+   子项： .ant-menu-item            (如「短拜访记录」)
+   ============================================================ */
+.ant-pro-sider .ant-menu-submenu>.ant-menu-submenu-title,
+.ant-pro-base-menu .ant-menu-submenu>.ant-menu-submenu-title {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px;
+    opacity: 1;
+}
+
+.ant-pro-sider .ant-menu-item,
+.ant-pro-base-menu .ant-menu-item {
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    opacity: 0.85;
+}
+
+.ant-pro-sider .ant-menu-item-selected,
+.ant-pro-base-menu .ant-menu-item-selected {
+    opacity: 1;
+}
+
+/* ============================================================
+   侧栏菜单 hover：完全无背景块，仅文字变亮，
+   保持侧栏整体统一背景色，不产生任何“方块感”。
+   ============================================================ */
+.ant-pro-sider .ant-menu-item:hover,
+.ant-pro-sider .ant-menu-submenu-title:hover,
+.ant-pro-base-menu .ant-menu-item:hover,
+.ant-pro-base-menu .ant-menu-submenu-title:hover {
+    background: transparent !important;
+    color: #ffffff !important;
+}
+
+/* 选中项保持实蓝（不被 hover 规则覆盖） */
+.ant-pro-sider .ant-menu-item.ant-menu-item-selected,
+.ant-pro-sider .ant-menu-item.ant-menu-item-selected:hover,
+.ant-pro-base-menu .ant-menu-item.ant-menu-item-selected,
+.ant-pro-base-menu .ant-menu-item.ant-menu-item-selected:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+
+/* 顶部栏：细分隔线 + 极轻投影，增加层次但不厚重 */
+.ant-pro-layout .ant-pro-layout-header.ant-pro-layout-header {
+    border-bottom: 1px solid #e6ebf1;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+/* ============================================================
+   顶部右侧 action 区 hover 清理：
+   ProLayout 在顶栏为 avatarProps / actionsRender 生成
+   .ant-pro-global-header-header-actions-item，antd 默认
+   hover 会加一层浅灰/白色方框背景，观感杂乱，这里统一透明。
+   ============================================================ */
+.ant-pro-global-header-header-actions-item,
+.ant-pro-global-header-header-actions-item:hover,
+.ant-pro-global-header-header-actions-item-hover,
+.ant-pro-global-header-header-actions-avatar,
+.ant-pro-global-header-header-actions-avatar:hover {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* ============================================================
+   折叠侧栏：完全去除蓝色方块背景（包括选中/hover时）
+   仅保留图标，选中靠图标颜色区分
+   ============================================================ */
+.ant-menu-inline-collapsed .ant-menu-item,
+.ant-menu-inline-collapsed .ant-menu-submenu-title,
+.ant-menu-inline-collapsed .ant-menu-item-selected,
+.ant-menu-inline-collapsed .ant-menu-item:hover,
+.ant-menu-inline-collapsed .ant-menu-submenu-title:hover,
+.ant-menu-inline-collapsed .ant-menu-submenu-selected>.ant-menu-submenu-title {
+    background: transparent !important;
+}
+
+/* 折叠时选中图标颜色亮一些 */
+.ant-menu-inline-collapsed .ant-menu-item-selected,
+.ant-menu-inline-collapsed .ant-menu-item-selected .anticon,
+.ant-menu-inline-collapsed .ant-menu-submenu-selected>.ant-menu-submenu-title .anticon {
+    color: #60a5fa !important;
+}
+
+/* 卡片：圆角 + 细边框 + 柔和投影（QueryFilter / ProTable 容器） */
+.ant-pro-card {
+    border: 1px solid #e6ebf1;
+    border-radius: 10px;
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+/* 表格：表头更精致（中字重、柔和底、清晰分隔） */
+.ant-table-thead>tr>th {
+    font-weight: 600;
+}
+
+/* 表体分隔线更细腻 */
+.ant-table-tbody>tr>td {
+    border-bottom: 1px solid #eef2f6;
+}
+
+/* 斑马纹：偶数行浅灰底，提升多列数据可读性。
+   antd 5 的 td 默认透明，hover 由更高优先级的
+   .ant-table-cell-row-hover 选择器覆盖，故无需 !important。 */
+.ant-table-tbody>tr:nth-child(even)>td {
+    background: #fafbfc;
+}
+
+/* 数字列等宽数字，纵向对齐更整齐（配合 tabular-nums） */
+.ant-table-tbody>tr>td .cell-num {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   折叠侧边栏弹出菜单 & tooltip：深色背景与侧栏一致
+   1) .ant-menu-submenu-popup  ── 有子项时 hover 弹出的子菜单
+   2) .ant-menu-inline-collapsed-tooltip ── 叶子菜单项的名称提示
+   ============================================================ */
+
+/* 弹出子菜单容器深色 */
+.ant-menu-submenu-popup {
+    background: transparent !important;
+}
+
+.ant-menu-submenu-popup>ul,
+.ant-menu-submenu-popup .ant-menu-vertical {
+    background: #0f172a !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+    padding: 4px !important;
+}
+
+.ant-menu-submenu-popup .ant-menu-item,
+.ant-menu-submenu-popup .ant-menu-submenu-title {
+    color: rgba(226, 232, 240, 0.72) !important;
+    border-radius: 6px !important;
+}
+
+.ant-menu-submenu-popup .ant-menu-item:hover,
+.ant-menu-submenu-popup .ant-menu-submenu-title:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #ffffff !important;
+}
+
+.ant-menu-submenu-popup .ant-menu-item-selected {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+
+/* 折叠状态叶子菜单项 tooltip 深色 */
+.ant-menu-inline-collapsed-tooltip .ant-tooltip-inner {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 13px;
+    border-radius: 6px;
+    padding: 6px 10px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.ant-menu-inline-collapsed-tooltip .ant-tooltip-arrow::before,
+.ant-menu-inline-collapsed-tooltip .ant-tooltip-arrow::after {
+    background: #0f172a;
+}
+
+/* ============================================================
+   滚动条美化（提升细节质感）
+   ============================================================ */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}

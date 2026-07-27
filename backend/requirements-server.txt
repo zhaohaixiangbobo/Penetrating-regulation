@@ -1,0 +1,15 @@
+# 生产/信创服务器依赖清单（aarch64 内网离线安装专用）
+# 与 requirements.txt 的差异：
+#   - 数据库驱动用 aiomysql（纯 Python，任意 CPU 架构均可离线安装），替代 asyncmy（无稳定 aarch64 wheel）
+#   - 去掉仅开发/测试用的 pytest、pytest-asyncio、httpx
+# 安装方式见 docs/07-信创服务器部署手册.md
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+sqlalchemy>=2.0,<3.0
+aiomysql>=0.2.0
+aiosqlite>=0.20
+pydantic>=2.7
+pydantic-settings>=2.4
+python-jose[cryptography]>=3.3
+passlib[bcrypt]>=1.7
+python-multipart>=0.0.9
