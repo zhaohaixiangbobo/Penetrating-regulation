@@ -23,7 +23,7 @@ from app.db.sqlite import Base, get_engine, get_sessionmaker  # noqa: E402
 from app.models.user import User  # noqa: E402  (导入以注册模型)
 
 DEFAULT_USER = "admin"
-DEFAULT_PASSWORD = "tjyc!2026"
+DEFAULT_PASSWORD = "Tjyc!2026"
 
 
 async def init() -> None:
@@ -38,7 +38,8 @@ async def init() -> None:
     async with SessionLocal() as session:  # type: AsyncSession
         exists = (await session.execute(select(User).where(User.username == DEFAULT_USER))).scalar_one_or_none()
         if exists is None:
-            session.add(User(username=DEFAULT_USER, password_hash=hash_password(DEFAULT_PASSWORD)))
+            session.add(User(username=DEFAULT_USER,
+                        password_hash=hash_password(DEFAULT_PASSWORD)))
             await session.commit()
             print(f"[ok] 已创建默认用户: {DEFAULT_USER}")
         else:
