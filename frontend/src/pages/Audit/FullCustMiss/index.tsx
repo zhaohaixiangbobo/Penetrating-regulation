@@ -11,7 +11,7 @@ import { loadCache, saveCache } from '@/utils/queryCache';
 import { getCompanyTagColor } from '@/utils/companyColor';
 import { exportToExcel } from '@/utils/exportExcel';
 
-const MIN_MONTH = dayjs('2025-02-01');
+const MIN_MONTH = dayjs('2025-09-01');
 const CACHE_KEY = 'shenji_fcm_v2';
 
 const DEFAULT_MONTH = dayjs().subtract(1, 'month').startOf('month').format('YYYY-MM-DD');

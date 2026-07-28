@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api/audit",
 # ============ 辅助工具 ============
 
 MIN_DATE = date(2024, 1, 1)
-MIN_MONTH = date(2025, 2, 1)
+MIN_MONTH = date(2025, 9, 1)
 
 
 def _validate_com_ids(ids: Sequence[str]) -> None:
@@ -127,12 +127,12 @@ WHERE plan_date >= :start_date
 
 
 # ============ 功能 2 SQL ============
-# 依据 database.md 最新版本：
-# - 客户经理直接取自评价客户表的 customer_manager_person_id（评价时点归属，无需窗口函数回溯）
-# - 公司/营业部/姓名来自经理所属的 t_comm_employee
-# - list 限制 a.status = '3'（已生效评价）且 y_m >= 起始月份（减少扫描）
-# - 月份标识与范围过滤均基于 y_m（评价月份），而非 sysupdatedate（记录更新时间）
-#   sysupdatedate 是最后修改时间，与评价归属月份不一致，用它过滤会丢失早期评价记录
+# 依据 database.md 业务逻辑：
+# - y_m 是评价"计算月份"（哪个月的全商品评价），仅用于过滤有效数据范围（固定下限 2025-09）
+# - sysupdatedate 是评价"生效日期"，决定客户纳入全商品管理的起始月
+# - 业务含义：查询评价生效月份（sqdate）内无拜访的全商品客户
+# - y_m >= '2025-09' 为固定最小值（全商品评价从2025年9月开始），不随查询区间动态变化
+#   若改为 y_m >= :start_ym，会误排除 y_m 早于查询区间但 sysupdatedate 在区间内的记录
 
 _SQL_FULL_CUST_MISS_TMPL = """
 WITH bf AS (
@@ -146,18 +146,18 @@ WITH bf AS (
 ),
 list AS (
   SELECT
-    REPLACE(y_m, '-', '') AS year_month,
+    DATE_FORMAT(a.sysupdatedate, '%Y%m') AS year_month,
     cust_uuid,
     cust_code,
     cust_name,
     customer_manager_person_id AS mgr_id,
-    CONCAT(y_m, '-01') AS sqdate
+    DATE_FORMAT(a.sysupdatedate, '%Y-%m-01') AS sqdate
   FROM uc_evaluation_m a
   LEFT JOIN uc_evaluation_m_cust b ON a.evaluation_m_uuid = b.evaluation_m_uuid
   LEFT JOIN kc_customer_yz c ON b.cust_uuid = c.id
   WHERE evaluation_type_adj = '04'
     AND a.status = '3'
-    AND y_m >= :start_ym
+    AND y_m >= '2025-09'
 ),
 zh AS (
   SELECT
@@ -303,8 +303,6 @@ def _build_full_cust_miss_query(payload: MonthlyQueryRequest) -> tuple[str, dict
     params = {
         "start_month": str(payload.start_month),
         "end_month": str(payload.end_month),
-        # y_m 为 'YYYY-MM' 字符串列，用于减少评价表扫描范围
-        "start_ym": payload.start_month.strftime("%Y-%m"),
         **extra_params,
     }
     return sql, params, order_by
