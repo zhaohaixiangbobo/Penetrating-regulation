@@ -128,10 +128,11 @@ WHERE plan_date >= :start_date
 
 # ============ 功能 2 SQL ============
 # 依据 database.md 最新版本：
-# - 客户经理直接取评价客户表的 customer_manager_person_id（评价时点归属，无需窗口函数回溯）
+# - 客户经理直接取自评价客户表的 customer_manager_person_id（评价时点归属，无需窗口函数回溯）
 # - 公司/营业部/姓名来自经理所属的 t_comm_employee
 # - list 限制 a.status = '3'（已生效评价）且 y_m >= 起始月份（减少扫描）
-# - 最终按 sqdate 过滤查询月份范围，输出 year_month（'%Y%m'）
+# - 月份标识与范围过滤均基于 y_m（评价月份），而非 sysupdatedate（记录更新时间）
+#   sysupdatedate 是最后修改时间，与评价归属月份不一致，用它过滤会丢失早期评价记录
 
 _SQL_FULL_CUST_MISS_TMPL = """
 WITH bf AS (
@@ -145,12 +146,12 @@ WITH bf AS (
 ),
 list AS (
   SELECT
-    DATE_FORMAT(a.sysupdatedate, '%Y%m') AS year_month,
+    REPLACE(y_m, '-', '') AS year_month,
     cust_uuid,
     cust_code,
     cust_name,
     customer_manager_person_id AS mgr_id,
-    DATE_FORMAT(a.sysupdatedate, '%Y-%m-01') AS sqdate
+    CONCAT(y_m, '-01') AS sqdate
   FROM uc_evaluation_m a
   LEFT JOIN uc_evaluation_m_cust b ON a.evaluation_m_uuid = b.evaluation_m_uuid
   LEFT JOIN kc_customer_yz c ON b.cust_uuid = c.id
