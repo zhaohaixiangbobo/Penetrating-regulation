@@ -34,7 +34,10 @@ async def test_me_requires_token(client: AsyncClient) -> None:
 async def test_me_ok(client: AsyncClient, auth_header: dict[str, str]) -> None:
     resp = await client.get("/api/auth/me", headers=auth_header)
     assert resp.status_code == 200
-    assert resp.json() == {"username": "admin"}
+    body = resp.json()
+    assert body["username"] == "admin"
+    # 角色随 /me 一并返回（conftest 建的 admin 未显式设角色，取默认 user）
+    assert body["role"] in {"admin", "user"}
 
 
 async def test_bad_token(client: AsyncClient) -> None:

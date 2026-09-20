@@ -18,10 +18,12 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     username: str
+    role: str = "user"
 
 
 class MeResponse(BaseModel):
     username: str
+    role: str = "user"
 
 
 class CompanyItem(BaseModel):

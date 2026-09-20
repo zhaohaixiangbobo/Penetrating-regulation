@@ -11,7 +11,7 @@ import { getMe } from '@/services/auth';
 
 const TOKEN_KEY = 'shenji_token';
 
-export async function getInitialState(): Promise<{ currentUser?: { username: string } }> {
+export async function getInitialState(): Promise<{ currentUser?: { username: string; role?: string } }> {
     if (history.location.pathname.startsWith('/user/login')) {
         return {};
     }

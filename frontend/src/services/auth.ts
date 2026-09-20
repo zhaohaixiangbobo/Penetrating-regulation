@@ -9,10 +9,12 @@ export interface LoginResponse {
     access_token: string;
     token_type: string;
     username: string;
+    role: string;
 }
 
 export interface MeResponse {
     username: string;
+    role: string;
 }
 
 export async function login(payload: LoginRequest) {

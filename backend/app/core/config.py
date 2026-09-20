@@ -39,6 +39,26 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MIN: int = 480
 
+    # ------------------------------------------------------------------
+    # 认证模式与 4A/OIDC 预留配置
+    #   AUTH_MODE=local ：本地 SQLite 账号 + 密码登录（默认）
+    #   AUTH_MODE=oidc  ：对接 4A 统一身份平台（OIDC 单点登录，待甲方文档落地）
+    # 说明：切换到 oidc 时，本地登录接口仍可作为降级入口保留。
+    # ------------------------------------------------------------------
+    AUTH_MODE: str = "local"
+    # 新建账号的默认角色（admin / user）
+    DEFAULT_ROLE: str = "user"
+
+    # OIDC 对接参数（AUTH_MODE=oidc 时必填，local 模式下留空即可）
+    OIDC_ISSUER: str = ""            # 例如 https://4a.example.com/oidc
+    OIDC_CLIENT_ID: str = ""
+    OIDC_CLIENT_SECRET: str = ""
+    OIDC_REDIRECT_URI: str = ""      # 例如 http://10.9.14.128/api/auth/sso/callback
+    OIDC_SCOPES: str = "openid profile"
+    # 从 OIDC 用户信息中读取用户名/角色所用的字段名（不同 4A 平台可能不同）
+    OIDC_USERNAME_CLAIM: str = "preferred_username"
+    OIDC_ROLE_CLAIM: str = "role"
+
     CORS_ORIGINS: str = "http://localhost:8000,http://127.0.0.1:8000,http://localhost:8001,http://127.0.0.1:8001,http://localhost:3000,http://127.0.0.1:3000"
 
     @property
