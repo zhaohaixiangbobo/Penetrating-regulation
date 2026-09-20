@@ -18,12 +18,14 @@ export interface AuditQueryRequest {
 export interface DailyUnderHourRequest extends AuditQueryRequest {
     sdpt_name?: string;
     person_uuid?: string;
+    threshold_minutes?: number;
     sort_field?: 'v_date';
     sort_order?: 'ascend' | 'descend';
 }
 
 export interface ShortVisitQueryRequest extends AuditQueryRequest {
     person_name?: string;
+    threshold_seconds?: number;
     sort_field?: 'plan_date' | 'visit_time';
     sort_order?: 'ascend' | 'descend';
 }

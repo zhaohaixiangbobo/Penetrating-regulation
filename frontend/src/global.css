@@ -46,7 +46,7 @@ body {
 
 /* ============================================================
    徧道导航字体层级：父组标题 > 子菜单项
-   父组： .ant-menu-submenu-title  (如「审计查询」)
+   父组： .ant-menu-submenu-title  (如「营销审计」)
    子项： .ant-menu-item            (如「短拜访记录」)
    ============================================================ */
 .ant-pro-sider .ant-menu-submenu>.ant-menu-submenu-title,

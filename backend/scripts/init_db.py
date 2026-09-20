@@ -21,11 +21,37 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.db.migrate import ensure_sqlite_schema  # noqa: E402
 from app.db.sqlite import Base, get_engine, get_sessionmaker  # noqa: E402
+from app.models.clue import AuditClue  # noqa: E402,F401  (导入以注册线索相关表)
 from app.models.user import User  # noqa: E402  (导入以注册模型)
 
 DEFAULT_USER = "admin"
 DEFAULT_PASSWORD = "Tjyc!2026"
 DEFAULT_ROLE = "admin"
+
+# 需要预置的账号清单：(用户名, 密码, 角色)
+# admin：默认管理员；user：默认普通用户
+SEED_USERS: list[tuple[str, str, str]] = [
+    (DEFAULT_USER, DEFAULT_PASSWORD, DEFAULT_ROLE),
+    ("user", "Tjyc!2026", "user"),
+]
+
+
+async def _ensure_user(session: AsyncSession, username: str, password: str, role: str) -> None:
+    """幂等确保账号存在：不存在则创建；存在但角色不符则修正。"""
+    exists = (await session.execute(
+        select(User).where(User.username == username))).scalar_one_or_none()
+    if exists is None:
+        session.add(User(username=username,
+                    password_hash=hash_password(password),
+                    role=role))
+        await session.commit()
+        print(f"[ok] 已创建用户: {username} (role={role})")
+    elif getattr(exists, "role", None) != role:
+        exists.role = role
+        await session.commit()
+        print(f"[ok] 已将 {username} 角色更新为 {role}")
+    else:
+        print(f"[skip] 用户 {username} 已存在")
 
 
 async def init() -> None:
@@ -40,21 +66,8 @@ async def init() -> None:
 
     SessionLocal = get_sessionmaker()
     async with SessionLocal() as session:  # type: AsyncSession
-        exists = (await session.execute(select(User).where(User.username == DEFAULT_USER))).scalar_one_or_none()
-        if exists is None:
-            session.add(User(username=DEFAULT_USER,
-                        password_hash=hash_password(DEFAULT_PASSWORD),
-                        role=DEFAULT_ROLE))
-            await session.commit()
-            print(f"[ok] 已创建默认管理员: {DEFAULT_USER} (role={DEFAULT_ROLE})")
-        else:
-            # 确保存量默认账号具备管理员角色
-            if getattr(exists, "role", None) != DEFAULT_ROLE:
-                exists.role = DEFAULT_ROLE
-                await session.commit()
-                print(f"[ok] 已将 {DEFAULT_USER} 角色更新为 {DEFAULT_ROLE}")
-            else:
-                print(f"[skip] 用户 {DEFAULT_USER} 已存在")
+        for username, password, role in SEED_USERS:
+            await _ensure_user(session, username, password, role)
 
 
 if __name__ == "__main__":

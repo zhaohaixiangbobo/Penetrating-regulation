@@ -42,6 +42,8 @@ npm run dev
 ```powershell
 cd d:\2-code\shenji\backend
 D:\3-anaconda\envs\py312\python.exe -m pytest -q
+
+
 ```
 
 ```powershell

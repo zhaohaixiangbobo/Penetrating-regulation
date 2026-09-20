@@ -11,8 +11,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import audit, auth, meta
+from app.api import audit, auth, feedback, meta
 from app.core.config import get_settings
+from app.db.migrate import ensure_sqlite_schema
 from app.db.sqlite import Base, get_engine as get_sqlite_engine
 
 logger = logging.getLogger("shenji")
@@ -26,6 +27,8 @@ async def lifespan(_: FastAPI):
     engine = get_sqlite_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # 老库平滑升级：补齐 role / external_id 列
+    await ensure_sqlite_schema(engine)
     logger.info("SQLite tables ensured.")
     yield
 
@@ -45,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(meta.router)
     app.include_router(audit.router)
+    app.include_router(feedback.router)
 
     @app.get("/api/health", tags=["health"])
     async def health() -> dict[str, str]:

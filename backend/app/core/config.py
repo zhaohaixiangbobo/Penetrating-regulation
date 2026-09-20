@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import List
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 后端根目录（app/core/config.py -> app -> backend），用于计算不依赖 CWD 的绝对路径
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 # 13 个公司代码（来源：database.md）
@@ -26,6 +30,27 @@ COMPANIES: list[dict[str, str]] = [
 ]
 
 VALID_COM_IDS: set[str] = {c["com_id"] for c in COMPANIES}
+
+# ------------------------------------------------------------------
+# 审计线索反馈：附件上传相关常量
+# ------------------------------------------------------------------
+# 附件根目录（绝对路径，位于 backend/data/uploads/clues），备份时需与 app.db 一并备份
+UPLOAD_DIR: Path = _BACKEND_ROOT / "data" / "uploads" / "clues"
+# 单个附件大小上限（MB）
+MAX_UPLOAD_MB: int = 10
+# 单条线索附件数量上限
+MAX_ATTACHMENTS_PER_CLUE: int = 5
+# 允许的附件扩展名（小写，含点）
+ALLOWED_UPLOAD_EXTS: set[str] = {
+    ".jpg", ".jpeg", ".png", ".webp",
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".zip",
+}
+# 线索类型与状态取值（后端确定性校验用）
+CLUE_CATEGORIES: tuple[str, ...] = ("拜访异常", "资料造假", "违规经营", "其他")
+CLUE_STATUSES: tuple[str, ...] = ("pending", "processing", "done")
+CLUE_STATUS_LABELS: dict[str, str] = {
+    "pending": "待处理", "processing": "处理中", "done": "已处理",
+}
 
 
 class Settings(BaseSettings):

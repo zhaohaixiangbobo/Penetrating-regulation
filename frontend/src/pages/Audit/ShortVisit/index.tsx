@@ -14,6 +14,9 @@ import { exportToExcel } from '@/utils/exportExcel';
 const MIN_DATE = dayjs('2024-01-01');
 const CACHE_KEY = 'shenji_sv';
 
+// 拜访时间（秒）可选阈值，默认 60
+const THRESHOLD_OPTIONS = [40, 50, 60, 70, 80, 90].map((n) => ({ label: `${n}秒`, value: n }));
+
 const DATE_PRESETS = [
   { label: '今天', value: [dayjs(), dayjs()] as [dayjs.Dayjs, dayjs.Dayjs] },
   { label: '过去一个月', value: [dayjs().subtract(1, 'month'), dayjs()] as [dayjs.Dayjs, dayjs.Dayjs] },
@@ -26,6 +29,7 @@ interface Filter {
   end_date?: string;
   sdpt_name?: string;   // 仅前端联动筛选，不传后端
   person_name?: string;
+  threshold_seconds?: number;
 }
 
 export default function ShortVisitPage() {
@@ -58,6 +62,7 @@ export default function ShortVisitPage() {
               range: [dayjs(cache.filter.start_date), dayjs(cache.filter.end_date)],
               sdpt_name: cache.filter.sdpt_name,
               person_name: cache.filter.person_name,
+              threshold_seconds: cache.filter.threshold_seconds ?? 60,
             });
             actionRef.current?.reload();
           }, 100);
@@ -106,14 +111,14 @@ export default function ShortVisitPage() {
     );
 
   const handleExport = async () => {
-    const { com_ids, start_date, end_date, person_name } = filterRef.current;
+    const { com_ids, start_date, end_date, person_name, threshold_seconds } = filterRef.current;
     if (!com_ids?.length || !start_date || !end_date) {
       message.warning('请先选择公司和日期范围并查询后再导出');
       return;
     }
     setExporting(true);
     try {
-      const rows = await exportShortVisit({ com_ids, start_date, end_date, person_name });
+      const rows = await exportShortVisit({ com_ids, start_date, end_date, person_name, threshold_seconds });
       if (!rows?.length) {
         message.info('当前筛选条件下无数据可导出');
         return;
@@ -170,13 +175,14 @@ export default function ShortVisitPage() {
   return (
     <PageContainer
       header={{
-        title: '功能1 · 短拜访记录 (< 1 分钟)',
-        subTitle: '营销系统拜访记录不到 1 分钟但状态正常的零售户',
+        title: '功能1 · 短拜访记录',
+        subTitle: '营销系统拜访记录短但状态正常的零售户',
       }}
     >
       <QueryFilter
         formRef={formRef}
         layout="horizontal"
+        initialValues={{ threshold_seconds: 60 }}
         onFinish={async (v) => {
           const [s, e] = v.range || [];
           filterRef.current = {
@@ -185,6 +191,7 @@ export default function ShortVisitPage() {
             end_date: e ? dayjs(e).format('YYYY-MM-DD') : undefined,
             sdpt_name: v.sdpt_name || undefined,
             person_name: v.person_name || undefined,
+            threshold_seconds: v.threshold_seconds ?? 60,
           };
           pendingCacheRef.current = null; // 主动查询时跳过缓存
           actionRef.current?.reload();
@@ -230,6 +237,9 @@ export default function ShortVisitPage() {
             style={{ minWidth: 160 }}
           />
         </Form.Item>
+        <Form.Item name="threshold_seconds" label="拜访时间(秒)">
+          <Select options={THRESHOLD_OPTIONS} style={{ minWidth: 120 }} />
+        </Form.Item>
       </QueryFilter>
 
       <ProTable<ShortVisitRow>
@@ -263,7 +273,7 @@ export default function ShortVisitPage() {
             return { data: cached.items, total: cached.total, success: true };
           }
 
-          const { com_ids, start_date, end_date, sdpt_name, person_name } = filterRef.current;
+          const { com_ids, start_date, end_date, sdpt_name, person_name, threshold_seconds } = filterRef.current;
           if (!com_ids?.length || !start_date || !end_date) return { data: [], success: true, total: 0 };
 
           // 提取排序字段与方向（ProTable 传入的 sort 形如 { plan_date: 'descend' }）
@@ -276,6 +286,7 @@ export default function ShortVisitPage() {
               start_date,
               end_date,
               person_name,
+              threshold_seconds,
               sort_field: sortField,
               sort_order: sortOrder,
               page: p.current || 1,
@@ -285,7 +296,7 @@ export default function ShortVisitPage() {
 
             // 保存第 1 页到缓存
             if ((p.current || 1) === 1) {
-              saveCache(CACHE_KEY, { com_ids, start_date, end_date, sdpt_name, person_name }, res.items, res.total, 1, p.pageSize || 20);
+              saveCache(CACHE_KEY, { com_ids, start_date, end_date, sdpt_name, person_name, threshold_seconds }, res.items, res.total, 1, p.pageSize || 20);
             }
             return { data: res.items, total: res.total, success: true };
           } catch (err) {

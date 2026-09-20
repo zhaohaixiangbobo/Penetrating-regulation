@@ -39,6 +39,18 @@ MIN_DATE = date(2024, 1, 1)
 MIN_MONTH = date(2025, 9, 1)
 
 
+# 拜访时长阈值白名单（秒/分钟共用同一组可选值），防止非法值
+VALID_VISIT_THRESHOLDS = {40, 50, 60, 70, 80, 90}
+
+
+def _validate_threshold(value: int) -> None:
+    if value not in VALID_VISIT_THRESHOLDS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"非法阈值: {value}，仅支持 {sorted(VALID_VISIT_THRESHOLDS)}",
+        )
+
+
 def _validate_com_ids(ids: Sequence[str]) -> None:
     if not ids:
         raise HTTPException(
@@ -121,7 +133,7 @@ WHERE plan_date >= :start_date
   AND plan_date < DATE_ADD(:end_date, INTERVAL 1 DAY)
   AND visit_status = '03'
   AND deleted = '0'
-  AND visit_time < 60
+  AND visit_time < :threshold_seconds
   AND com_id IN ({com_id_in}){extra_where}
 """
 
@@ -212,7 +224,7 @@ GROUP BY
   sdpt_name,
   cust_manager_person_uuid,
   person_name
-HAVING sum(visit_time) < 3600
+HAVING sum(visit_time) < :threshold_seconds
 """
 
 
@@ -250,6 +262,7 @@ async def _run_all(
 def _build_short_visit_query(payload: ShortVisitQueryRequest) -> tuple[str, dict[str, Any], str]:
     _validate_com_ids(payload.com_ids)
     _validate_date_range(payload.start_date, payload.end_date)
+    _validate_threshold(payload.threshold_seconds)
 
     # 可选：客户经理姓名模糊筛选
     extra_where = ""
@@ -271,6 +284,7 @@ def _build_short_visit_query(payload: ShortVisitQueryRequest) -> tuple[str, dict
     params = {
         "start_date": str(payload.start_date),
         "end_date": str(payload.end_date),
+        "threshold_seconds": payload.threshold_seconds,
         **extra_params,
     }
     return sql, params, order_by
@@ -311,6 +325,7 @@ def _build_full_cust_miss_query(payload: MonthlyQueryRequest) -> tuple[str, dict
 def _build_daily_under_hour_query(payload: DailyUnderHourRequest) -> tuple[str, dict[str, Any], str]:
     _validate_com_ids(payload.com_ids)
     _validate_date_range(payload.start_date, payload.end_date)
+    _validate_threshold(payload.threshold_minutes)
 
     # 构建可选过滤子句（营业部 / 客户经理）
     extra_where = ""
@@ -335,6 +350,7 @@ def _build_daily_under_hour_query(payload: DailyUnderHourRequest) -> tuple[str, 
     params = {
         "start_date": str(payload.start_date),
         "end_date": str(payload.end_date),
+        "threshold_seconds": payload.threshold_minutes * 60,
         **extra_params,
     }
     return sql, params, order_by

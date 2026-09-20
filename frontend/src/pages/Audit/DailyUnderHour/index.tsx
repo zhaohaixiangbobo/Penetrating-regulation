@@ -14,6 +14,9 @@ import { exportToExcel } from '@/utils/exportExcel';
 const MIN_DATE = dayjs('2024-01-01');
 const CACHE_KEY = 'shenji_duh';
 
+// 拜访分钟数可选阈值，默认 60
+const THRESHOLD_OPTIONS = [40, 50, 60, 70, 80, 90].map((n) => ({ label: `${n}分钟`, value: n }));
+
 const DATE_PRESETS = [
     { label: '今天', value: [dayjs(), dayjs()] as [dayjs.Dayjs, dayjs.Dayjs] },
     { label: '过去一个月', value: [dayjs().subtract(1, 'month'), dayjs()] as [dayjs.Dayjs, dayjs.Dayjs] },
@@ -26,6 +29,7 @@ interface Filter {
     end_date?: string;
     sdpt_name?: string;
     person_uuid?: string;
+    threshold_minutes?: number;
 }
 
 export default function DailyUnderHourPage() {
@@ -57,6 +61,7 @@ export default function DailyUnderHourPage() {
                             range: [dayjs(cache.filter.start_date), dayjs(cache.filter.end_date)],
                             sdpt_name: cache.filter.sdpt_name,
                             person_uuid: cache.filter.person_uuid,
+                            threshold_minutes: cache.filter.threshold_minutes ?? 60,
                         });
                         actionRef.current?.reload();
                     }, 100);
@@ -105,20 +110,20 @@ export default function DailyUnderHourPage() {
         );
 
     const handleExport = async () => {
-        const { com_ids, start_date, end_date, sdpt_name, person_uuid } = filterRef.current;
+        const { com_ids, start_date, end_date, sdpt_name, person_uuid, threshold_minutes } = filterRef.current;
         if (!com_ids?.length || !start_date || !end_date) {
             message.warning('请先选择公司和日期范围并查询后再导出');
             return;
         }
         setExporting(true);
         try {
-            const rows = await exportDailyUnderHour({ com_ids, start_date, end_date, sdpt_name, person_uuid });
+            const rows = await exportDailyUnderHour({ com_ids, start_date, end_date, sdpt_name, person_uuid, threshold_minutes });
             if (!rows?.length) {
                 message.info('当前筛选条件下无数据可导出');
                 return;
             }
             exportToExcel(
-                `日拜访不足60分钟_${start_date}_${end_date}`,
+                `日拜访不足_${start_date}_${end_date}`,
                 [
                     { title: '拜访日期', dataIndex: 'v_date' },
                     { title: '公司', dataIndex: 'short_name' },
@@ -164,13 +169,14 @@ export default function DailyUnderHourPage() {
     return (
         <PageContainer
             header={{
-                title: '功能3 · 客户经理日拜访不足 60 分钟',
-                subTitle: '按工作日汇总客户经理拜访总时长，低于 60 分钟的记录',
+                title: '功能3 · 客户经理日拜访不足',
+                subTitle: '按工作日汇总客户经理拜访总时长不足情况',
             }}
         >
             <QueryFilter
                 formRef={formRef}
                 layout="horizontal"
+                initialValues={{ threshold_minutes: 60 }}
                 onFinish={async (v) => {
                     const [s, e] = v.range || [];
                     filterRef.current = {
@@ -179,6 +185,7 @@ export default function DailyUnderHourPage() {
                         end_date: e ? dayjs(e).format('YYYY-MM-DD') : undefined,
                         sdpt_name: v.sdpt_name || undefined,
                         person_uuid: v.person_uuid || undefined,
+                        threshold_minutes: v.threshold_minutes ?? 60,
                     };
                     pendingCacheRef.current = null;
                     actionRef.current?.reload();
@@ -224,6 +231,9 @@ export default function DailyUnderHourPage() {
                         style={{ minWidth: 160 }}
                     />
                 </Form.Item>
+                <Form.Item name="threshold_minutes" label="拜访分钟数">
+                    <Select options={THRESHOLD_OPTIONS} style={{ minWidth: 120 }} />
+                </Form.Item>
             </QueryFilter>
 
             <ProTable<DailyUnderHourRow>
@@ -257,7 +267,7 @@ export default function DailyUnderHourPage() {
                         return { data: cached.items, total: cached.total, success: true };
                     }
 
-                    const { com_ids, start_date, end_date, sdpt_name, person_uuid } = filterRef.current;
+                    const { com_ids, start_date, end_date, sdpt_name, person_uuid, threshold_minutes } = filterRef.current;
                     if (!com_ids?.length || !start_date || !end_date) return { data: [], success: true, total: 0 };
 
                     // 提取排序字段与方向
@@ -271,6 +281,7 @@ export default function DailyUnderHourPage() {
                             end_date,
                             sdpt_name,
                             person_uuid,
+                            threshold_minutes,
                             sort_field: sortField,
                             sort_order: sortOrder,
                             page: p.current || 1,
@@ -278,7 +289,7 @@ export default function DailyUnderHourPage() {
                         });
                         console.log('[DailyUnderHour] response:', res);
                         if ((p.current || 1) === 1) {
-                            saveCache(CACHE_KEY, { com_ids, start_date, end_date, sdpt_name, person_uuid }, res.items, res.total, 1, p.pageSize || 20);
+                            saveCache(CACHE_KEY, { com_ids, start_date, end_date, sdpt_name, person_uuid, threshold_minutes }, res.items, res.total, 1, p.pageSize || 20);
                         }
                         return { data: res.items, total: res.total, success: true };
                     } catch (err) {

@@ -36,7 +36,9 @@ async def _prepare_sqlite() -> None:
 
     SessionLocal = get_sessionmaker()
     async with SessionLocal() as session:
-        session.add(User(username="admin", password_hash=hash_password("tjyc!2026")))
+        # admin：真正的管理员角色；user1：普通用户角色
+        session.add(User(username="admin", password_hash=hash_password("tjyc!2026"), role="admin"))
+        session.add(User(username="user1", password_hash=hash_password("user!2026"), role="user"))
         await session.commit()
 
 
@@ -57,3 +59,26 @@ async def auth_token(client: AsyncClient) -> str:
 @pytest.fixture
 def auth_header(auth_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {auth_token}"}
+
+
+# ---- 角色化 fixture：管理员 与 普通用户 分离，供线索反馈等鉴权测试使用 ----
+@pytest_asyncio.fixture
+async def admin_token(auth_token: str) -> str:
+    return auth_token
+
+
+@pytest.fixture
+def admin_header(admin_token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {admin_token}"}
+
+
+@pytest_asyncio.fixture
+async def user_token(client: AsyncClient) -> str:
+    resp = await client.post("/api/auth/login", json={"username": "user1", "password": "user!2026"})
+    assert resp.status_code == 200, resp.text
+    return resp.json()["access_token"]
+
+
+@pytest.fixture
+def user_header(user_token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {user_token}"}

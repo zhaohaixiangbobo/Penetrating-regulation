@@ -46,6 +46,7 @@ class DailyUnderHourRequest(AuditQueryRequest):
 
     sdpt_name: str | None = Field(None, description="营业部名称（可选）")
     person_uuid: str | None = Field(None, description="客户经理 UUID（可选）")
+    threshold_minutes: int = Field(60, description="日拜访不足阈值（分钟），默认 60")
     sort_field: str | None = Field(None, description="排序字段：v_date")
     sort_order: str | None = Field(None, description="排序方向：ascend / descend")
 
@@ -54,6 +55,7 @@ class ShortVisitQueryRequest(AuditQueryRequest):
     """功能 1 查询参数，扩展客户经理筛选与排序。"""
 
     person_name: str | None = Field(None, description="客户经理姓名（可选，模糊匹配）")
+    threshold_seconds: int = Field(60, description="短拜访阈值（秒），默认 60")
     sort_field: str | None = Field(
         None, description="排序字段：plan_date / visit_time")
     sort_order: str | None = Field(None, description="排序方向：ascend / descend")
