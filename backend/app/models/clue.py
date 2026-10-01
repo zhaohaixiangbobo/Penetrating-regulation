@@ -35,15 +35,19 @@ class AuditClue(Base):
     # 关联公司代码（可空），建索引便于按公司过滤
     com_id: Mapped[str | None] = mapped_column(
         String(16), index=True, nullable=True)
-    involved_dept: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    involved_manager: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    involved_customer: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    involved_dept: Mapped[str | None] = mapped_column(
+        String(200), nullable=True)
+    involved_manager: Mapped[str | None] = mapped_column(
+        String(200), nullable=True)
+    involved_customer: Mapped[str | None] = mapped_column(
+        String(200), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     # 当前状态：pending / processing / done
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="pending",
         server_default="pending", index=True)
-    created_by: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    created_by: Mapped[str] = mapped_column(
+        String(64), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=beijing_now, nullable=False, index=True)
     updated_at: Mapped[datetime] = mapped_column(
@@ -52,7 +56,8 @@ class AuditClue(Base):
     handle_remark: Mapped[str | None] = mapped_column(Text, nullable=True)
     handled_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # 仅 status=done 时有值（离开 done 置空）
-    handled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    handled_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True)
 
 
 class AuditClueAttachment(Base):
@@ -69,7 +74,8 @@ class AuditClueAttachment(Base):
     stored_name: Mapped[str] = mapped_column(
         String(128), unique=True, nullable=False)
     size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(
+        String(128), nullable=True)
     uploaded_by: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=beijing_now, nullable=False)

@@ -1,3 +1,4 @@
+/** 审计查询页面：条件筛选、分页、空结果提示与导出。 */
 import { useEffect, useRef, useState } from 'react';
 import { PageContainer, ProTable, QueryFilter } from '@ant-design/pro-components';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
@@ -237,6 +238,7 @@ export default function FullCustMissPage() {
       </QueryFilter>
 
       <ProTable<FullCustMissRow>
+        locale={{ emptyText: '暂未查到符合条件的数据，请调整筛选条件后查询' }}
         actionRef={actionRef}
         columns={columns}
         rowKey={(r, idx) => `${r.year_month || ''}-${r.cust_code || ''}-${idx}`}

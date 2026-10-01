@@ -99,14 +99,14 @@ async def test_full_cust_miss_month_floor(client: AsyncClient, auth_header: dict
     resp = await client.post(
         "/api/audit/full-cust-miss",
         json={
-            "com_id": "11120101",
-            "start_month": "2024-12-01",
-            "end_month": "2025-03-01",
+            "com_ids": ["11120101"],
+            "start_month": "2025-08-01",
+            "end_month": "2025-09-01",
         },
         headers=auth_header,
     )
     assert resp.status_code == 422
-    assert "2025-02-01" in resp.text
+    assert "2025-09-01" in resp.text
 
 
 # ---------- 使用 FakeSession ----------
@@ -208,9 +208,9 @@ async def test_full_cust_miss_binds_month(client: AsyncClient, auth_header: dict
         resp = await client.post(
             "/api/audit/full-cust-miss",
             json={
-                "com_id": "11120101",
-                "start_month": "2025-02-01",
-                "end_month": "2025-06-01",
+                "com_ids": ["11120101"],
+                "start_month": "2025-09-01",
+                "end_month": "2026-06-01",
             },
             headers=auth_header,
         )
@@ -218,15 +218,21 @@ async def test_full_cust_miss_binds_month(client: AsyncClient, auth_header: dict
         _clear_fake()
 
     assert resp.status_code == 200
-    _, count_params = session.executed[0]
-    assert count_params["com_id"] == "11120101"
-    assert str(count_params["start_month"]) == "2025-02-01"
-    assert str(count_params["end_month"]) == "2025-06-01"
+    count_sql, count_params = session.executed[0]
+    assert "tstg_zmglpt_std_l_rlic_handle_main" in count_sql
+    assert "MIN(DATE_FORMAT(decide_date, '%Y-%m-01'))" in count_sql
+    assert "handle_result IN ('02', '05')" in count_sql
+    assert "apply_type IN ('07', '10', '12', '18')" in count_sql
+    assert "decide_month IS NULL OR sqdate < decide_month" in count_sql
+    assert str(count_params["start_month"]) == "2025-09-01"
+    assert str(count_params["end_month"]) == "2026-06-01"
+    assert str(count_params["license_change_floor"]) == "2025-09-01"
 
 
 async def test_audit_requires_auth(client: AsyncClient) -> None:
     resp = await client.post(
         "/api/audit/short-visit",
-        json={"com_id": "11120101", "start_date": "2024-01-01T00:00:00", "end_date": "2024-12-31T00:00:00"},
+        json={"com_id": "11120101", "start_date": "2024-01-01T00:00:00",
+              "end_date": "2024-12-31T00:00:00"},
     )
     assert resp.status_code == 401

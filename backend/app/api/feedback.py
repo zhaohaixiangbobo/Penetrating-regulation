@@ -194,7 +194,8 @@ async def get_clue(
     _ensure_can_access(clue, principal)
 
     atts = (await session.execute(
-        select(AuditClueAttachment).where(AuditClueAttachment.clue_id == clue_id)
+        select(AuditClueAttachment).where(
+            AuditClueAttachment.clue_id == clue_id)
         .order_by(AuditClueAttachment.created_at.asc()))).scalars().all()
     logs = (await session.execute(
         select(AuditClueHandleLog).where(AuditClueHandleLog.clue_id == clue_id)
@@ -242,7 +243,8 @@ async def handle_clue(
     await session.refresh(clue)
 
     atts = (await session.execute(
-        select(AuditClueAttachment).where(AuditClueAttachment.clue_id == clue_id)
+        select(AuditClueAttachment).where(
+            AuditClueAttachment.clue_id == clue_id)
         .order_by(AuditClueAttachment.created_at.asc()))).scalars().all()
     logs = (await session.execute(
         select(AuditClueHandleLog).where(AuditClueHandleLog.clue_id == clue_id)

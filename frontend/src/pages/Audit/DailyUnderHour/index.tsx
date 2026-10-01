@@ -1,3 +1,4 @@
+/** 审计查询页面：条件筛选、分页、空结果提示与导出。 */
 import { useEffect, useRef, useState } from 'react';
 import { PageContainer, ProTable, QueryFilter } from '@ant-design/pro-components';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
@@ -237,6 +238,7 @@ export default function DailyUnderHourPage() {
             </QueryFilter>
 
             <ProTable<DailyUnderHourRow>
+        locale={{ emptyText: '暂未查到符合条件的数据，请调整筛选条件后查询' }}
                 actionRef={actionRef}
                 columns={columns}
                 rowKey={(r, idx) => `${r.v_date || ''}-${r.cust_manager_person_uuid || ''}-${idx}`}
@@ -291,7 +293,7 @@ export default function DailyUnderHourPage() {
                         if ((p.current || 1) === 1) {
                             saveCache(CACHE_KEY, { com_ids, start_date, end_date, sdpt_name, person_uuid, threshold_minutes }, res.items, res.total, 1, p.pageSize || 20);
                         }
-                        return { data: res.items, total: res.total, success: true };
+            return { data: res.items, total: res.total, success: true };
                     } catch (err) {
                         console.error('[DailyUnderHour] request failed:', err);
                         return { data: [], success: false, total: 0 };

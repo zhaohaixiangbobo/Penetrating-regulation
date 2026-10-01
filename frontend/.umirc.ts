@@ -1,3 +1,4 @@
+/** Umi 配置：统一布局、兼容目标、接口代理和页面路由。 */
 import { defineConfig } from '@umijs/max';
 
 export default defineConfig({
@@ -45,6 +46,18 @@ export default defineConfig({
                 { path: '/audit/short-visit', name: '短拜访记录', component: './Audit/ShortVisit' },
                 { path: '/audit/full-cust-miss', name: '全商品缺访客户', component: './Audit/FullCustMiss' },
                 { path: '/audit/daily-under-hour', name: '日拜访不足', component: './Audit/DailyUnderHour' },
+                { path: '/audit/long-visit', name: '单次超长拜访', component: './Audit/LongVisit' },
+                { path: '/audit/auto-collect-miss', name: '自动信息采集户缺访', component: './Audit/AutoCollectMiss' },
+            ],
+        },
+        {
+            path: '/marketing-monopoly',
+            name: '营销专卖',
+            icon: 'SolutionOutlined',
+            routes: [
+                { path: '/marketing-monopoly', redirect: '/marketing-monopoly/bank-owner-mismatch' },
+                { path: '/marketing-monopoly/bank-owner-mismatch', name: '扣款户名不符', component: './MarketingMonopoly/BankOwnerMismatch' },
+                { path: '/marketing-monopoly/visit-location', name: '拜访定位偏差', component: './MarketingMonopoly/VisitLocation' },
             ],
         },
         {

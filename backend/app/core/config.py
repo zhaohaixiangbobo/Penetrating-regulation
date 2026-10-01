@@ -46,7 +46,7 @@ ALLOWED_UPLOAD_EXTS: set[str] = {
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".zip",
 }
 # 线索类型与状态取值（后端确定性校验用）
-CLUE_CATEGORIES: tuple[str, ...] = ("拜访异常", "资料造假", "违规经营", "其他")
+CLUE_CATEGORIES: tuple[str, ...] = ("营销", "专卖", "审计", "财务", "其他")
 CLUE_STATUSES: tuple[str, ...] = ("pending", "processing", "done")
 CLUE_STATUS_LABELS: dict[str, str] = {
     "pending": "待处理", "processing": "处理中", "done": "已处理",

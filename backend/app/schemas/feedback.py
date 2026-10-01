@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.core.config import CLUE_CATEGORIES, VALID_COM_IDS
 
 # 线索类型 / 状态字面量（与 config 常量保持一致）
-CategoryLiteral = Literal["拜访异常", "资料造假", "违规经营", "其他"]
+CategoryLiteral = Literal["营销", "专卖", "审计", "财务", "其他"]
 StatusLiteral = Literal["pending", "processing", "done"]
 
 

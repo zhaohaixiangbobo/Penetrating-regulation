@@ -23,7 +23,7 @@ def _isolate_upload_dir(tmp_path, monkeypatch):
 async def _create_clue(client: AsyncClient, header: dict, **overrides) -> dict:
     payload = {
         "title": "测试线索",
-        "category": "拜访异常",
+        "category": "营销",
         "content": "这是一条测试线索内容",
     }
     payload.update(overrides)

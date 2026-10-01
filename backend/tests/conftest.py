@@ -12,10 +12,12 @@ from pathlib import Path
 
 # 在导入 app 之前设置环境变量
 _TMP_DIR = Path(tempfile.mkdtemp(prefix="shenji-test-"))
-os.environ.setdefault("SQLITE_URL", f"sqlite+aiosqlite:///{(_TMP_DIR / 'test.db').as_posix()}")
+os.environ.setdefault(
+    "SQLITE_URL", f"sqlite+aiosqlite:///{(_TMP_DIR / 'test.db').as_posix()}")
 os.environ.setdefault("JWT_SECRET", "test-secret-32bytes-xxxxxxxxxxxxxxxx")
 # StarRocks 不真连；填个语法合法的占位串
-os.environ.setdefault("STARROCKS_URL", "mysql+asyncmy://u:p@127.0.0.1:9030/?charset=utf8mb4")
+os.environ.setdefault(
+    "STARROCKS_URL", "mysql+asyncmy://u:p@127.0.0.1:9030/?charset=utf8mb4")
 
 import pytest  # noqa: E402
 import pytest_asyncio  # noqa: E402
@@ -37,8 +39,10 @@ async def _prepare_sqlite() -> None:
     SessionLocal = get_sessionmaker()
     async with SessionLocal() as session:
         # admin：真正的管理员角色；user1：普通用户角色
-        session.add(User(username="admin", password_hash=hash_password("tjyc!2026"), role="admin"))
-        session.add(User(username="user1", password_hash=hash_password("user!2026"), role="user"))
+        session.add(
+            User(username="admin", password_hash=hash_password("tjyc!2026"), role="admin"))
+        session.add(
+            User(username="user1", password_hash=hash_password("user!2026"), role="user"))
         await session.commit()
 
 

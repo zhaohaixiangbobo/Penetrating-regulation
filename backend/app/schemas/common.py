@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Generic, List, TypeVar
+from typing import Generic, List, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -89,6 +89,40 @@ class ShortVisitRow(BaseModel):
     visit_time: int | None = None
 
 
+class LongVisitRequest(AuditQueryRequest):
+    """单次超长拜访：按可选分钟阈值、公司、营业部及经理筛选。"""
+
+    threshold_minutes: Literal[260, 280, 300, 320, 340] = Field(
+        300, description="单次拜访时长阈值（分钟），默认 300")
+    sdpt_name: str | None = None
+    person_uuid: str | None = None
+    sort_field: str | None = Field(None, description="v_date / visit_minutes")
+    sort_order: str | None = None
+
+
+class LongVisitRow(BaseModel):
+    """单条超长拜访；原始时间和客户 UUID 用于区分记录。"""
+
+    visit_id: str | None = None
+    v_date: str | None = None
+    visit_timestamp: str | None = None
+    com_id: str | None = None
+    short_name: str | None = None
+    sdpt_name: str | None = None
+    cust_manager_person_uuid: str | None = None
+    person_name: str | None = None
+    cust_uuid: str | None = None
+    license_code: str | None = None
+    cust_name: str | None = None
+    visit_minutes: float | None = None
+
+
+class AutoCollectMissRequest(MonthlyQueryRequest):
+    """自动信息采集户评价生效月零有效拜访查询。"""
+
+    start_month: date = Field(..., description="起始月份 (YYYY-MM-01)，最早 2025-09-01")
+
+
 class FullCustMissRow(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -98,6 +132,14 @@ class FullCustMissRow(BaseModel):
     cust_name: str | None = None
     sdpt_name: str | None = None
     person_name: str | None = None
+
+
+class AutoCollectMissRow(FullCustMissRow):
+    """缺访客户月明细，附带稳定的客户与经理标识。"""
+
+    com_id: str | None = None
+    cust_uuid: str | None = None
+    mgr_id: str | None = None
 
 
 class DailyUnderHourRow(BaseModel):

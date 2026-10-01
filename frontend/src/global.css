@@ -69,6 +69,22 @@ body {
     opacity: 1;
 }
 
+/* 顶层叶子菜单与分组标题保持同一视觉规格。
+   例如「数据看板」没有子菜单，仍作为一级模块展示。 */
+.ant-pro-sider .ant-menu-root.ant-menu-inline > .ant-menu-item,
+.ant-pro-base-menu .ant-menu-root.ant-menu-inline > .ant-menu-item {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px;
+    opacity: 1;
+}
+
+/* 一级模块图标统一为 16px，和「营销审计」的图标比例一致。 */
+.ant-pro-sider .ant-menu-root.ant-menu-inline > .ant-menu-item .anticon,
+.ant-pro-base-menu .ant-menu-root.ant-menu-inline > .ant-menu-item .anticon {
+    font-size: 16px;
+}
+
 /* ============================================================
    侧栏菜单 hover：完全无背景块，仅文字变亮，
    保持侧栏整体统一背景色，不产生任何“方块感”。

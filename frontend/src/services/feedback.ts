@@ -1,7 +1,7 @@
 import { request } from '@umijs/max';
 
 // 线索类型与状态取值（与后端 config 常量保持一致）
-export const CLUE_CATEGORIES = ['拜访异常', '资料造假', '违规经营', '其他'] as const;
+export const CLUE_CATEGORIES = ['营销', '专卖', '审计', '财务', '其他'] as const;
 export type ClueCategory = (typeof CLUE_CATEGORIES)[number];
 
 export type ClueStatus = 'pending' | 'processing' | 'done';
