@@ -1,4 +1,7 @@
+/** 审计线索页面：统一展示业务编号，使用内部主键完成记录关联。 */
+import { clueNumber } from '@/utils/clueNumber';
 import { useEffect, useState } from 'react';
+import RiskClueLinks from '@/components/RiskClueLinks';
 import {
     Button,
     Descriptions,
@@ -113,7 +116,7 @@ export default function ClueDetailDrawer({ clueId, open, onClose, canHandle, onH
 
     return (
         <Drawer
-            title={detail ? `线索详情 · #${detail.id}` : '线索详情'}
+            title={detail ? `线索详情 · ${clueNumber(detail.id)}` : '线索详情'}
             width={640}
             open={open}
             onClose={onClose}
@@ -143,6 +146,7 @@ export default function ClueDetailDrawer({ clueId, open, onClose, canHandle, onH
                         <Descriptions.Item label="提交时间">{formatClueTime(detail.created_at)}</Descriptions.Item>
                     </Descriptions>
 
+                    <RiskClueLinks clueId={detail.id} />
                     <Divider orientation="left">线索内容</Divider>
                     <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>
                         {detail.content}

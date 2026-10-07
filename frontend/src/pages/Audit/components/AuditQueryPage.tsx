@@ -1,10 +1,11 @@
 /** 审计查询共用页面：人员联动、可选时长阈值、分页排序、用户缓存和 Excel 导出。 */
 import { useEffect, useRef, useState } from 'react';
 import { useModel } from '@umijs/max';
-import { PageContainer, ProTable, QueryFilter } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { Button, DatePicker, Form, message, Select } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
+import QueryFilter from '@/components/UnifiedQueryFilter';
 import dayjs from 'dayjs';
 import CompanySelect from '@/components/CompanySelect';
 import { listEmployees } from '@/services/auth';

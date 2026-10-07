@@ -63,8 +63,32 @@ export default defineConfig({
         {
             path: '/dashboard',
             name: '数据看板',
+            hideInMenu: true, // 暂时隐藏原占位看板，风险看板继续保留。
             icon: 'DashboardOutlined',
             component: './Dashboard',
+        },
+        {
+            path: '/risk-models', name: '风险模型', icon: 'ExperimentOutlined', access: 'canRisk',
+            routes: [
+                { path: '/risk-models', redirect: '/risk-models/models' },
+                { path: '/risk-models/indicators', name: '指标管理', component: './Risk/Indicators' },
+                { path: '/risk-models/models', name: '模型管理', component: './Risk/Models' },
+                { path: '/risk-models/runs', name: '运行记录', component: './Risk/Runs' },
+            ],
+        },
+        {
+            path: '/risk-alerts', name: '风险预警', icon: 'AlertOutlined', access: 'canRisk',
+            routes: [
+                { path: '/risk-alerts', redirect: '/risk-alerts/ledger' },
+                { path: '/risk-alerts/ledger', name: '预警台账', component: './Risk/Alerts' },
+            ],
+        },
+        {
+            path: '/risk-analysis', name: '风险分析', icon: 'BarChartOutlined', access: 'canRisk',
+            routes: [
+                { path: '/risk-analysis', redirect: '/risk-analysis/dashboard' },
+                { path: '/risk-analysis/dashboard', name: '风险看板', component: './Risk/Dashboard' },
+            ],
         },
         {
             path: '/feedback',

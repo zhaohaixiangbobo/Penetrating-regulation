@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    # 风险一期默认关闭；管理员可在本地配置中启用，原查询保持可用。
+    RISK_MODULE_ENABLED: bool = False
+    RISK_RUN_ENABLED: bool = False
+
     STARROCKS_URL: str = "mysql+asyncmy://root:TJycrock%23lc2025@10.9.14.128:9030/eap_adb?charset=utf8mb4"
     SQLITE_URL: str = "sqlite+aiosqlite:///./data/app.db"
 

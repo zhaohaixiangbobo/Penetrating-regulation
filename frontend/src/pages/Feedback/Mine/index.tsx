@@ -1,3 +1,5 @@
+/** 审计线索页面：统一展示业务编号，使用内部主键完成记录关联。 */
+import { clueNumber } from '@/utils/clueNumber';
 import { useRef, useState } from 'react';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
@@ -96,7 +98,7 @@ export default function FeedbackMinePage() {
     };
 
     const columns: ProColumns<ClueRow>[] = [
-        { title: '编号', dataIndex: 'id', width: 70 },
+        { title: '线索编号', dataIndex: 'id', width: 145, render: (_, r) => clueNumber(r.id) },
         { title: '标题', dataIndex: 'title', width: 220, ellipsis: true },
         {
             title: '类型',

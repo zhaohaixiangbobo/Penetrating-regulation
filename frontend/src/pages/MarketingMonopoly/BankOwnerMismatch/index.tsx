@@ -2,10 +2,11 @@
 import IssuingOrgTag, { shortOrganization } from '@/components/IssuingOrgTag';
 import { useEffect, useRef, useState } from 'react';
 import { useModel } from '@umijs/max';
-import { PageContainer, ProTable, QueryFilter } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { Alert, Button, DatePicker, Divider, Form, Input, message, Select } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
+import QueryFilter from '@/components/UnifiedQueryFilter';
 import dayjs from 'dayjs';
 import { exportBankOwnerMismatch, listIssuingOrganizations, queryBankOwnerMismatch } from '@/services/marketingMonopoly';
 import type { BankOwnerMismatchRequest, BankOwnerMismatchRow, IssuingOrganization } from '@/services/marketingMonopoly';
@@ -100,7 +101,7 @@ export default function BankOwnerMismatchPage() {
   return (
     <PageContainer header={{ title: '扣款户名不符', subTitle: '营销系统最新扣款账号户名与有效许可证持证人姓名不一致' }}>
       <QueryFilter
-        formRef={formRef} layout="horizontal" defaultCollapsed={false}
+        formRef={formRef} layout="horizontal"
         initialValues={{
           issue_org_codes: cache?.filter.issue_org_codes,
           lic_no: cache?.filter.lic_no,

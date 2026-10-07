@@ -1,9 +1,10 @@
 /** 审计查询页面：条件筛选、分页、空结果提示与导出。 */
 import { useEffect, useRef, useState } from 'react';
-import { PageContainer, ProTable, QueryFilter } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { Button, DatePicker, Form, message, Select, Tag } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
+import QueryFilter from '@/components/UnifiedQueryFilter';
 import dayjs from 'dayjs';
 import CompanySelect from '@/components/CompanySelect';
 import { queryDailyUnderHour, exportDailyUnderHour, DailyUnderHourRow } from '@/services/audit';

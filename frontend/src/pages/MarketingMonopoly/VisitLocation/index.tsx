@@ -2,10 +2,11 @@
 import IssuingOrgTag, { shortOrganization } from '@/components/IssuingOrgTag';
 import { useEffect, useRef, useState } from 'react';
 import { useModel } from '@umijs/max';
-import { PageContainer, ProTable, QueryFilter } from '@ant-design/pro-components';
+import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns, ProFormInstance } from '@ant-design/pro-components';
 import { Alert, Button, DatePicker, Divider, Form, Input, message, Select } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
+import QueryFilter from '@/components/UnifiedQueryFilter';
 import dayjs from 'dayjs';
 import { exportVisitLocation, listIssuingOrganizations, queryVisitLocation } from '@/services/marketingMonopoly';
 import type { VisitLocationRequest, VisitLocationRow, IssuingOrganization } from '@/services/marketingMonopoly';
@@ -108,7 +109,7 @@ export default function VisitLocationPage() {
   return (
     <PageContainer header={{ title: '拜访定位偏差', subTitle: '客户经理有效拜访签到位置与许可证经营地址的距离超过设定阈值' }}>
       <QueryFilter
-        formRef={formRef} layout="horizontal" defaultCollapsed={false}
+        formRef={formRef} layout="horizontal"
         initialValues={{
           issue_org_codes: cache?.filter.issue_org_codes,
           lic_no: cache?.filter.lic_no,

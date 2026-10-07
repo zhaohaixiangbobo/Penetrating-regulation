@@ -8,10 +8,11 @@ import { history, RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { LogoutOutlined, DownOutlined, UserOutlined } from '@ant-design/icons';
 import { Dropdown, message, Space } from 'antd';
 import { getMe } from '@/services/auth';
+import { riskGet } from '@/services/risk';
 
 const TOKEN_KEY = 'shenji_token';
 
-export async function getInitialState(): Promise<{ currentUser?: { username: string; role?: string } }> {
+export async function getInitialState(): Promise<{ currentUser?: { username: string; role?: string }; riskEnabled?: boolean }> {
     if (history.location.pathname.startsWith('/user/login')) {
         return {};
     }
@@ -22,7 +23,9 @@ export async function getInitialState(): Promise<{ currentUser?: { username: str
     }
     try {
         const me = await getMe();
-        return { currentUser: me };
+        // 新模块能力读取失败不影响原查询登录与访问。
+        const capabilities = await riskGet('/capabilities').catch(() => ({ enabled: false }));
+        return { currentUser: me, riskEnabled: capabilities.enabled };
     } catch {
         localStorage.removeItem(TOKEN_KEY);
         history.replace('/user/login');

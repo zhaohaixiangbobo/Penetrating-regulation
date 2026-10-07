@@ -1,7 +1,10 @@
+/** 审计线索页面：统一展示业务编号，使用内部主键完成记录关联。 */
+import { clueNumber } from '@/utils/clueNumber';
 import { useRef, useState } from 'react';
-import { PageContainer, ProTable, QueryFilter, ProForm, ProFormSelect } from '@ant-design/pro-components';
+import { PageContainer, ProTable, ProForm, ProFormSelect } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { Tag } from 'antd';
+import QueryFilter from '@/components/UnifiedQueryFilter';
 import CompanySelect from '@/components/CompanySelect';
 import { getCompanyTagColor } from '@/utils/companyColor';
 import { ClueRow, formatClueTime, listAllClues } from '@/services/feedback';
@@ -24,7 +27,7 @@ export default function FeedbackManagePage() {
     };
 
     const columns: ProColumns<ClueRow>[] = [
-        { title: '编号', dataIndex: 'id', width: 70 },
+        { title: '线索编号', dataIndex: 'id', width: 145, render: (_, r) => clueNumber(r.id) },
         { title: '标题', dataIndex: 'title', width: 220, ellipsis: true },
         {
             title: '类型',
@@ -60,7 +63,6 @@ export default function FeedbackManagePage() {
     return (
         <PageContainer header={{ title: '审计线索管理', subTitle: '查看并处理全部用户提交的审计线索' }}>
             <QueryFilter<QueryParams>
-                style={{ marginBottom: 16, background: '#fff', padding: 16 }}
                 onFinish={async (values) => {
                     setQuery(values);
                     actionRef.current?.reload();
