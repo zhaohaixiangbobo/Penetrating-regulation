@@ -65,6 +65,9 @@ export default function Alerts() {
       ]} />
     <Drawer title={detail ? `风险详情 · ${alertNumber(detail.id)}` : '风险详情'} open={!!id} onClose={() => setId(undefined)} width="min(1000px, 95vw)">
       {detail && <>
+        {detail.historical_cross_version && <Alert style={{ marginBottom: 12 }} type="info" showIcon message="此事项保留了升级前的跨版本命中历史，原证据与核查记录完整保留" />}
+        {detail.history.some((h: any) => h.event_key === detail.event_key && h.model_version_id !== detail.model_version_id) && <Alert style={{ marginBottom: 12 }} type="info" showIcon message="同一事件存在其他模型版本的判定，可在相关历史事件中查看" />}
+        {detail.first_run.status !== 'succeeded' && <Alert style={{ marginBottom: 12 }} type="warning" showIcon message={`来源任务${labels[detail.first_run.status] || detail.first_run.status}，本条为已成功批次的结果`} />}
         <Descriptions column={2} size="small" items={[
           { key: 'model', label: '场景', children: detail.model_name }, { key: 'status', label: '状态', children: <Tag color={riskStatusColors[detail.status]}>{labels[detail.status]}</Tag> },
           { key: 'first', label: '首次发现', children: timeText(detail.first_seen) }, { key: 'last', label: '最近命中', children: timeText(detail.last_seen) },

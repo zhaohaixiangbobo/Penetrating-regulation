@@ -48,8 +48,8 @@ class RunRequest(BaseModel):
     def validate_scope(self):
         if self.start_date < date(2024,1,1) or self.end_date < self.start_date:
             raise ValueError('日期需从2024-01-01起，结束日期应晚于或等于开始日期')
-        if (self.end_date-self.start_date).days > 30:
-            raise ValueError('一期单次最多31天，请分段运行')
+        if (self.end_date-self.start_date).days > 365:
+            raise ValueError('单个父任务最多366天，系统按公司和日期自动分批')
         if set(self.com_ids)-VALID_COM_IDS:
             raise ValueError('公司代码无效')
         if self.mode == 'compare' and self.baseline_version_id is None:
@@ -62,3 +62,25 @@ class ActionRequest(BaseModel):
     conclusion: Literal['confirmed', 'reasonable', 'data_quality', 'insufficient', 'normal'] | None = None
     note: str = Field(min_length=2, max_length=5000)
     measures: str | None = Field(None, max_length=5000)
+
+
+class ScheduleRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    version_id: int
+    com_ids: list[str] = Field(min_length=1, max_length=13)
+    frequency: Literal['daily', 'weekly'] = 'daily'
+    weekday: int = Field(0, ge=0, le=6)
+    hour: int = Field(3, ge=0, le=23)
+    minute: int = Field(0, ge=0, le=59)
+    lookback_days: int = Field(3, ge=1, le=31)
+    batch_size: int = Field(1000, ge=1, le=5000)
+    enabled: bool = False
+    revision: int | None = None
+
+    @model_validator(mode='after')
+    def validate_schedule(self):
+        if not self.name.strip() or set(self.com_ids) - VALID_COM_IDS:
+            raise ValueError('计划名称或公司代码无效')
+        self.name = self.name.strip()
+        self.com_ids = list(dict.fromkeys(self.com_ids))
+        return self

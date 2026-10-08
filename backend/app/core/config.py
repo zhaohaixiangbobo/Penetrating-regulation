@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     # 风险一期默认关闭；管理员可在本地配置中启用，原查询保持可用。
     RISK_MODULE_ENABLED: bool = False
     RISK_RUN_ENABLED: bool = False
+    # 独立后台默认不开启计划；源键核实后才允许自动正式发布。
+    RISK_SCHEDULE_ENABLED: bool = False
+    RISK_SOURCE_KEY_VERIFIED: bool = False
+    RISK_BATCH_SIZE: int = Field(1000, ge=1, le=5000)
+    RISK_MAX_PENDING_RUNS: int = Field(50, ge=1, le=500)
+
 
     STARROCKS_URL: str = "mysql+asyncmy://root:TJycrock%23lc2025@10.9.14.128:9030/eap_adb?charset=utf8mb4"
     SQLITE_URL: str = "sqlite+aiosqlite:///./data/app.db"

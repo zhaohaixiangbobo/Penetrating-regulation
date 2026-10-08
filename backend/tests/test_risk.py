@@ -63,6 +63,7 @@ async def test_model_and_run_filters(client,auth_header,enabled):
 def enabled(monkeypatch):
     monkeypatch.setattr(get_settings(),'RISK_MODULE_ENABLED',True)
     monkeypatch.setattr(get_settings(),'RISK_RUN_ENABLED',True)
+    monkeypatch.setattr(get_settings(),'RISK_SOURCE_KEY_VERIFIED',True)
 
 @pytest.mark.asyncio
 async def test_alert_company_filter_and_multi_action(client,auth_header,user_header,enabled,monkeypatch):
@@ -124,7 +125,7 @@ async def test_run_workflow(client,auth_header,user_header,enabled,monkeypatch):
     version=m.json();base=dict(version_id=version['id'],mode='formal',start_date='2024-01-02',end_date='2024-01-02',com_ids=['11120101'])
     assert (await client.post('/api/risk/runs',headers=auth_header,json=base)).status_code==422
     assert (await client.post(f"/api/risk/versions/{version['id']}/publish",headers=auth_header)).status_code==200
-    assert (await client.post('/api/risk/runs',headers=auth_header,json={**base,'end_date':'2024-03-01'})).status_code==422
+    assert (await client.post('/api/risk/runs',headers=auth_header,json={**base,'end_date':'2025-03-01'})).status_code==422
     trial=(await client.post('/api/risk/runs',headers=auth_header,json={**base,'mode':'trial'})).json()
     await process(trial['id'],monkeypatch,[event('first')])
     detail=(await client.get('/api/risk/runs/'+trial['id'],headers=auth_header)).json()

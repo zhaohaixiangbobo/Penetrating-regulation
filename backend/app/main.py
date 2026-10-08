@@ -6,17 +6,16 @@
 from __future__ import annotations
 
 import logging
-import asyncio
-import contextlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import audit, auth, feedback, marketing_monopoly, meta, risk
-from app.services.risk_engine import bootstrap as bootstrap_risk, worker as risk_worker
+from app.api import audit, auth, feedback, marketing_monopoly, meta, risk, risk_schedules
+from app.services.risk_engine import bootstrap as bootstrap_risk
 from app.core.config import get_settings
 from app.db.migrate import ensure_sqlite_schema
+from app.db.risk_migrate import ensure_risk_schema
 from app.db.sqlite import Base, get_engine as get_sqlite_engine
 
 logger = logging.getLogger("shenji")
@@ -27,23 +26,19 @@ logging.basicConfig(level=logging.INFO,
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # 启动时确保 SQLite 表存在
+    await ensure_risk_schema()
     engine = get_sqlite_engine()
     async with engine.begin() as conn:
+        await conn.exec_driver_sql('BEGIN IMMEDIATE')
         await conn.run_sync(Base.metadata.create_all)
     # 老库平滑升级：补齐 role / external_id 列
     await ensure_sqlite_schema(engine)
     logger.info("SQLite tables ensured.")
-    task = None
     if get_settings().RISK_MODULE_ENABLED:
         await bootstrap_risk()
-        task = asyncio.create_task(risk_worker())
-    try:
-        yield
-    finally:
-        if task:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+    # API 只管理页面与队列，计算由 python -m app.risk_worker 独立执行。
+    yield
+
 
 
 def create_app() -> FastAPI:
@@ -64,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(marketing_monopoly.router)
     app.include_router(feedback.router)
     app.include_router(risk.router)
+    app.include_router(risk_schedules.router)
 
     @app.get("/api/health", tags=["health"])
     async def health() -> dict[str, str]:

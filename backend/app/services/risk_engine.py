@@ -12,7 +12,7 @@ from app.core.config import get_settings
 from app.db.sqlite import get_sessionmaker
 from app.db.starrocks import _SessionLocal as StarSession
 from app.models.clue import beijing_now
-from app.models.risk import RiskModel, RiskVersion, RiskRun, RiskItem, RiskAlert, RiskOccurrence, RiskLease
+from app.models.risk import RiskModel, RiskVersion, RiskRun, RiskItem, RiskAlert, RiskOccurrence, RiskLease, RiskBatch, RiskBatchAttempt
 from app.services.risk_rules import DEFAULT_CONFIG, evaluate
 
 logger = logging.getLogger('shenji.risk')
@@ -28,10 +28,21 @@ async def bootstrap():
         await s.commit()
 
 async def fetch_events(scope: dict):
-    """按已核对的源主键(id,plan_date,in_monthly_plan)读取；字典先归一，避免关联扩行。"""
+    """按候选复合键读取；源表为 DUPLICATE KEY，正式使用须另行核实唯一性和稳定性。"""
     keys = ','.join(f':company_{i}' for i in range(len(scope['com_ids'])))
     params = {f'company_{i}':v for i,v in enumerate(scope['com_ids'])}
-    params.update(start=scope['start_date'], end=scope['end_date'], cap=MAX_EVENTS+1)
+    page_size = scope.get('_batch_size', MAX_EVENTS)
+    params.update(start=scope['start_date'], end=scope['end_date'], cap=page_size+1)
+    cursor = scope.get('_cursor')
+    cursor_filter = ''
+    if cursor:
+        params.update(cursor)
+        cursor_filter = """WHERE (event_time > :event_time OR
+          (event_time = :event_time AND source_id > :source_id) OR
+          (event_time = :event_time AND source_id = :source_id AND
+           ((:is_null = 1 AND in_monthly_plan IS NOT NULL) OR
+            (:is_null = 0 AND in_monthly_plan > :monthly))))"""
+
     sql = f"""
 WITH lic AS (
  SELECT lic_no, COUNT(*) AS matches, MAX(longitude) longitude, MAX(latitude) latitude,
@@ -43,7 +54,7 @@ WITH lic AS (
  FROM t_comm_emp_yx GROUP BY person_uuid
 ), source AS (
  SELECT CAST(a.id AS VARCHAR) source_id, CAST(a.in_monthly_plan AS VARCHAR) in_monthly_plan,
- DATE_FORMAT(a.plan_date,'%Y-%m-%d %H:%i:%s') event_time,
+ CAST(a.plan_date AS VARCHAR) event_time,
  a.cust_code, a.cust_name, a.cust_manager_person_uuid person_id,
  e.person_name, e.com_id, e.short_name, e.companies,
  a.visit_time, l.longitude, l.latitude, a.gis_long, a.gis_lat, l.matches,
@@ -58,12 +69,15 @@ WITH lic AS (
  WHERE a.visit_status='03' AND a.deleted='0' AND a.plan_date>=:start
  AND a.plan_date<DATE_ADD(:end, INTERVAL 1 DAY) AND e.com_id IN ({keys})
 )
-SELECT * FROM source ORDER BY event_time, source_id, in_monthly_plan LIMIT :cap
+SELECT * FROM source {cursor_filter} ORDER BY event_time, source_id, CASE WHEN in_monthly_plan IS NULL THEN 0 ELSE 1 END, in_monthly_plan LIMIT :cap
 """
-    async with StarSession() as s:
-        await s.execute(text('SET query_timeout=30'))
-        rows = (await asyncio.wait_for(s.execute(text(sql),params),40)).mappings().all()
-    if len(rows)>MAX_EVENTS:
+    async def read_page():
+        async with StarSession() as s:
+            await s.execute(text('SET query_timeout=30'))
+            return (await s.execute(text(sql),params)).mappings().all()
+    # 连接建立、会话设置与查询合计受应用超时约束。
+    rows = await asyncio.wait_for(read_page(),40)
+    if '_batch_size' not in scope and len(rows)>MAX_EVENTS:
         raise ValueError('范围超过5000次拜访，请缩小日期或公司范围后运行；本次结果未发布')
     return [dict(r) for r in rows]
 
@@ -72,6 +86,8 @@ def normalize(row):
     data = {k:float(v) if isinstance(v,Decimal) else v for k,v in row.items()}
     if not data.get('source_id') or not data.get('event_time'):
         raise ValueError('拜访源键缺失，无法可靠去重；请先核对源数据')
+    # 统一时间文本并保留非零微秒；旧秒精度记录的事件键保持稳定。
+    data['event_time']=__import__('datetime').datetime.fromisoformat(str(data['event_time'])).isoformat(sep=' ')
     if data.get('companies',1)!=1:
         raise ValueError('人员关联到多个公司，需先核实组织归属')
     # 源表复合键允许 in_monthly_plan 为 NULL；用 JSON null 保留真实键值。
@@ -93,7 +109,13 @@ async def lease(owner):
 async def heartbeat(owner, lost):
     while True:
         await asyncio.sleep(4)
-        if not await lease(owner):
+        try:
+            renewed=await lease(owner)
+        except Exception:
+            logger.exception('租约心跳失败，停止当前所有者领取任务')
+            lost.set()
+            return
+        if not renewed:
             lost.set()
             return
 
@@ -115,11 +137,20 @@ async def finish_error(run_id, owner, status, reason):
                 status=status,stage='已取消' if status=='cancelled' else '运行失败',error=reason,ended_at=beijing_now()))
             await s.commit()
 
-async def execute_run(run_id, owner):
+async def execute_run(run_id, owner, batch_id=None, token=None):
     async with get_sessionmaker()() as s:
         run = await s.get(RiskRun,run_id)
         scope, config, baseline, mode = run.scope, run.snapshot, run.baseline, run.mode
+        batch = await s.get(RiskBatch, batch_id) if batch_id else None
+        if batch:
+            scope = {**scope, 'start_date': batch.day, 'end_date': batch.day, 'com_ids': [batch.company],
+                     '_batch_size': scope.get('batch_size', get_settings().RISK_BATCH_SIZE), '_cursor': batch.cursor}
     rows = await fetch_events(scope)
+    more = bool(batch and len(rows) > scope['_batch_size'])
+    # 额外一行用于判断是否有下一页，并检查跨页边界的重复源键。
+    if more and normalize(rows[scope['_batch_size']-1])[0] == normalize(rows[scope['_batch_size']])[0]:
+        raise ValueError('分页边界存在重复事件键，停止本批发布')
+    if batch: rows = rows[:scope['_batch_size']]
     items, seen = [], set()
     counts = dict(scanned=len(rows),hit=0,clear=0,unknown=0,quality_unknown=0,new_alerts=0,existing_alerts=0,
                   closed_rematches=0,new=0,removed=0,common=0,baseline_hit=0,customers=0,managers=0,
@@ -142,9 +173,13 @@ async def execute_run(run_id, owner):
             counts['new']+=int(outcome=='hit' and old!='hit')
             counts['removed']+=int(outcome!='hit' and old=='hit')
             counts['common']+=int(outcome=='hit' and old=='hit')
-        items.append(RiskItem(run_id=run_id,event_key=key,outcome=outcome,baseline_outcome=old,evidence=data,reasons=reasons))
+        items.append(RiskItem(run_id=run_id,batch_id=batch_id,event_key=key,outcome=outcome,baseline_outcome=old,evidence=data,reasons=reasons))
     counts.update(customers=len(customers-{None}),managers=len(managers-{None}))
     if not await allowed(run_id,owner):
+        if batch_id:
+            from app.services.risk_jobs import cancel_batch
+            await cancel_batch(run_id,batch_id,token,owner)
+            return
         await finish_error(run_id,owner,'cancelled','任务已取消或运行开关关闭')
         return
     async with get_sessionmaker()() as s:
@@ -154,74 +189,69 @@ async def execute_run(run_id, owner):
         if not lock.rowcount: return
         run=await s.get(RiskRun,run_id)
         if run.cancel_requested or run.status!='running':
-            run.status='cancelled';run.stage='已取消';run.ended_at=beijing_now()
-            await s.commit();return
+            if batch_id:
+                await s.rollback()
+                from app.services.risk_jobs import cancel_batch
+                await cancel_batch(run_id,batch_id,token,owner)
+            else:
+                run.status='cancelled';run.stage='已取消';run.ended_at=beijing_now()
+                await s.commit()
+            return
+        current_batch = await s.get(RiskBatch, batch_id) if batch_id else None
+        if current_batch and (current_batch.status != 'running' or current_batch.token != token): return
         s.add_all(items)
         await s.flush()
         if mode=='formal':
-            for item in items:
-                if item.outcome!='hit': continue
-                alert=(await s.execute(select(RiskAlert).where(RiskAlert.model_id==run.model_id,RiskAlert.event_key==item.event_key))).scalar_one_or_none()
+            hit_items=[i for i in items if i.outcome=='hit']
+            keys=[i.event_key for i in hit_items]
+            existing={a.event_key:a for a in (await s.scalars(select(RiskAlert).where(RiskAlert.model_version_id==run.version_id,RiskAlert.event_key.in_(keys)))).all()} if keys else {}
+            # 批量加载背景事项与现有事项，减少写事务内逐行查询。
+            closed=(await s.scalars(select(RiskAlert).where(RiskAlert.model_id==run.model_id,RiskAlert.status=='closed',
+                RiskAlert.cust_code.in_({i.evidence.get('cust_code') for i in hit_items})).order_by(RiskAlert.closed_at.desc()))).all() if hit_items else []
+            links=[]
+            for item in hit_items:
+                alert=existing.get(item.event_key)
                 if alert:
-                    counts['existing_alerts']+=1
-                    counts['closed_rematches']+=int(alert.status=='closed')
+                    counts['existing_alerts']+=1;counts['closed_rematches']+=int(alert.status=='closed')
                     alert.latest_item_id=item.id;alert.last_seen=beijing_now()
                 else:
                     d=item.evidence
-                    prior=(await s.execute(select(RiskAlert).where(RiskAlert.model_id==run.model_id,
-                        RiskAlert.cust_code==d.get('cust_code'),RiskAlert.person_id==d.get('person_id'),
-                        RiskAlert.status=='closed',RiskAlert.closed_at<__import__('datetime').datetime.fromisoformat(d['event_time']))
-                        .order_by(RiskAlert.closed_at.desc()).limit(1))).scalar_one_or_none()
-                    alert=RiskAlert(model_id=run.model_id,model_name=run.model_name,event_key=item.event_key,
+                    prior=next((a for a in closed if a.event_key!=item.event_key and a.cust_code==d.get('cust_code') and a.person_id==d.get('person_id') and a.closed_at<__import__('datetime').datetime.fromisoformat(d['event_time'])),None)
+                    alert=RiskAlert(model_id=run.model_id,model_version_id=run.version_id,model_name=run.model_name,event_key=item.event_key,
                         first_item_id=item.id,latest_item_id=item.id,cust_code=d.get('cust_code'),cust_name=d.get('cust_name'),
                         person_id=d.get('person_id'),person_name=d.get('person_name'),com_id=d.get('com_id'),
                         short_name=d.get('short_name'),event_time=d['event_time'],prior_alert_id=prior.id if prior else None,
                         recurrence=bool(prior and prior.conclusion=='confirmed'))
-                    s.add(alert);await s.flush();counts['new_alerts']+=1
-                s.add(RiskOccurrence(alert_id=alert.id,item_id=item.id))
-        run.counts=counts;run.status='succeeded';run.stage='运行完成';run.ended_at=beijing_now()
+                    s.add(alert);counts['new_alerts']+=1
+                links.append((alert,item))
+            await s.flush()
+            s.add_all([RiskOccurrence(alert_id=a.id,item_id=i.id) for a,i in links])
+        if current_batch:
+            current_batch.counts=counts;current_batch.status='succeeded';current_batch.ended_at=beijing_now()
+            attempt=(await s.scalars(select(RiskBatchAttempt).where(RiskBatchAttempt.batch_id==batch_id, RiskBatchAttempt.number==current_batch.attempt))).one()
+            attempt.status='succeeded';attempt.ended_at=beijing_now()
+            if more:
+                last=rows[-1]
+                s.add(RiskBatch(run_id=run_id,company=current_batch.company,day=current_batch.day,page=current_batch.page+1,
+                    cursor=dict(event_time=last['event_time'],source_id=last['source_id'],is_null=int(last.get('in_monthly_plan') is None),monthly=last.get('in_monthly_plan') or '')))
+            await s.flush()
+            from app.services.risk_jobs import summarize
+            await summarize(s, run)
+        else:
+            run.counts=counts;run.status='succeeded';run.stage='运行完成';run.ended_at=beijing_now()
         await s.commit()
+        # 仅在本地事务提交后输出完成信息，避免把回滚结果记为成功。
+        logger.info('结果已提交 run=%s batch=%s 扫描=%s 命中=%s 新增预警=%s 父任务状态=%s 进度=%s',
+                    run_id,batch_id,counts.get('scanned',0),counts.get('hit',0),
+                    counts.get('new_alerts',0),run.status,run.stage)
 
 async def _worker_loop():
-    """租约到期才能接管，重启遗留任务明确失败，重试由用户发起。"""
-    owner=str(uuid.uuid4())
-    current=None
-    try:
-        while True:
-            if not get_settings().RISK_RUN_ENABLED or not await lease(owner):
-                await asyncio.sleep(2);continue
-            async with get_sessionmaker()() as s:
-                # 拿到全局租约后，残留 running 任务来自已退出的旧运行器。
-                await s.execute(update(RiskRun).where(RiskRun.status=='running').values(status='failed',
-                    error='运行器中断，结果未发布，请重新运行',stage='运行中断',ended_at=beijing_now()))
-                run=(await s.execute(select(RiskRun).where(RiskRun.status=='queued').order_by(RiskRun.created_at).limit(1))).scalar_one_or_none()
-                if run:
-                    run.status='running';run.stage='正在读取并计算拜访指标（最多5000条）';run.started_at=beijing_now();current=run.id
-                await s.commit()
-            if not current:
-                await asyncio.sleep(2);continue
-            lost=asyncio.Event();hb=asyncio.create_task(heartbeat(owner,lost))
-            try:
-                await execute_run(current,owner)
-            except asyncio.CancelledError:
-                await finish_error(current,owner,'failed','服务停止，运行未完成，请重新运行')
-                raise
-            except Exception as exc:
-                logger.exception('risk run failed %s',current)
-                # 数据库驱动原始异常可能包含连接细节，只在服务日志记录。
-                detail=str(exc) if isinstance(exc,ValueError) else '计算失败，请检查数据连接或服务日志后重试'
-                await finish_error(current,owner,'failed',detail)
-            finally:
-                hb.cancel()
-                with contextlib.suppress(asyncio.CancelledError): await hb
-                current=None
-    finally:
-        async with get_sessionmaker()() as s:
-            await s.execute(update(RiskLease).where(RiskLease.id==1,RiskLease.owner==owner).values(expires=0))
-            await s.commit()
+    from app.services.risk_jobs import worker_loop
+    await worker_loop()
+
 
 async def worker():
-    """短暂连接故障后恢复取任务，防止后台任务静默退出而永久积压队列。"""
+    """独立后台进程遇到暂时故障后恢复；取消信号正常退出。"""
     while True:
         try:
             await _worker_loop()

@@ -73,6 +73,7 @@ export default defineConfig({
                 { path: '/risk-models', redirect: '/risk-models/models' },
                 { path: '/risk-models/indicators', name: '指标管理', component: './Risk/Indicators' },
                 { path: '/risk-models/models', name: '模型管理', component: './Risk/Models' },
+                { path: '/risk-models/schedules', name: '定时计划', component: './Risk/Schedules' },
                 { path: '/risk-models/runs', name: '运行记录', component: './Risk/Runs' },
             ],
         },

@@ -86,7 +86,7 @@ export default function Models() {
       <Alert type="info" showIcon style={{ marginBottom: 16 }} message={run?.mode === 'formal' ? '完成后生成预警台账，同一事件重复运行自动去重。' : '试算和对比仅保存计算结果，不生成正式预警。'} />
       <Form form={runForm} layout="vertical">
         <Form.Item name="com_ids" label="分析公司" rules={[{ required: true, message: '请选择公司' }]}><CompanySelect mode="multiple" /></Form.Item>
-        <Form.Item name="range" label="拜访日期（单次最多31天、5000次拜访）" rules={[{ required: true }]}><DatePicker.RangePicker allowClear={false} disabledDate={d => d.isBefore('2024-01-01', 'day')} /></Form.Item>
+        <Form.Item name="range" label="拜访日期（最多366天，自动分批）" rules={[{ required: true }]}><DatePicker.RangePicker allowClear={false} disabledDate={d => d.isBefore('2024-01-01', 'day')} /></Form.Item>
         {run?.mode === 'compare' && <Form.Item name="baseline_version_id" label="基准版本" rules={[{ required: true }]}><Select options={baselineVersions.filter(v => v.id !== run.row.id).map(v => ({ value: v.id, label: `V${v.number} ${configText(v.config)}` }))} /></Form.Item>}
       </Form>
     </Modal>

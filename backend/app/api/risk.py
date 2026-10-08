@@ -11,7 +11,7 @@ from app.core.config import get_settings, UPLOAD_DIR, ALLOWED_UPLOAD_EXTS, MAX_U
 from app.db.sqlite import get_sqlite_session
 from app.deps import require_admin, get_current_principal, Principal
 from app.models.clue import AuditClue, beijing_now
-from app.models.risk import RiskModel, RiskVersion, RiskRun, RiskItem, RiskAlert, RiskOccurrence, RiskAction, RiskClueLink, RiskAttachment
+from app.models.risk import RiskModel, RiskVersion, RiskRun, RiskItem, RiskAlert, RiskOccurrence, RiskAction, RiskClueLink, RiskAttachment, RiskBatch, RiskBatchAttempt
 from app.schemas.risk import CreateModel, ModelConfig, RunRequest, ActionRequest
 from app.services.risk_rules import INDICATORS
 
@@ -40,7 +40,7 @@ async def paged(s, cls, conditions, page, page_size):
 @router.get('/capabilities')
 async def capabilities(p:Principal=Depends(get_current_principal)):
     return dict(enabled=get_settings().RISK_MODULE_ENABLED and p.is_admin,
-        run_enabled=get_settings().RISK_RUN_ENABLED and p.is_admin,admin_only=True,scheduled=False)
+        run_enabled=get_settings().RISK_RUN_ENABLED and p.is_admin,admin_only=True,scheduled=get_settings().RISK_SCHEDULE_ENABLED)
 
 @router.get('/indicators',dependencies=[Depends(guard)])
 async def indicators(): return INDICATORS
@@ -116,6 +116,10 @@ async def create_run(body:RunRequest,p:Principal=Depends(guard),s:AsyncSession=D
     m=await get_or_404(s,RiskModel,v.model_id)
     if not m.enabled: raise HTTPException(409,'该模型已停用')
     if body.mode=='formal' and not v.published: raise HTTPException(422,'正式运行需使用已发布版本')
+    if body.mode=='formal' and not get_settings().RISK_SOURCE_KEY_VERIFIED:
+        raise HTTPException(409,'源事件键尚未核实，正式运行暂不可用；可先试算')
+    if await s.scalar(select(func.count()).select_from(RiskRun).where(RiskRun.status.in_(['queued','running'])))>=get_settings().RISK_MAX_PENDING_RUNS:
+        raise HTTPException(409,'任务积压达到上限，请稍后重试')
     baseline=None
     if body.mode=='compare':
         b=await get_or_404(s,RiskVersion,body.baseline_version_id)
@@ -123,14 +127,17 @@ async def create_run(body:RunRequest,p:Principal=Depends(guard),s:AsyncSession=D
         baseline=b.config
     run=RiskRun(id=str(uuid.uuid4()),model_id=m.id,version_id=v.id,model_name=m.name,version_number=v.number,
         mode=body.mode,snapshot=v.config,baseline=baseline,scope=dict(start_date=str(body.start_date),
-        end_date=str(body.end_date),com_ids=list(dict.fromkeys(body.com_ids)),baseline_version_id=body.baseline_version_id),created_by=p.username)
-    s.add(run);await s.commit();await s.refresh(run)
+        end_date=str(body.end_date),com_ids=list(dict.fromkeys(body.com_ids)),baseline_version_id=body.baseline_version_id,batch_size=get_settings().RISK_BATCH_SIZE,source='manual',data_cutoff='数据水位未知'),created_by=p.username)
+    s.add(run);await s.flush()
+    from app.services.risk_jobs import make_batches
+    await make_batches(s,run)
+    await s.commit();await s.refresh(run)
     return dump(run)
 
 @router.get('/runs',dependencies=[Depends(guard)])
 async def runs(page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=200),model_name:str|None=None,
     version_number:int|None=Query(None,ge=1),mode:Literal['trial','formal','compare']|None=None,
-    status:Literal['queued','running','succeeded','failed','cancelled']|None=None,s:AsyncSession=Depends(get_sqlite_session)):
+    status:Literal['queued','running','succeeded','failed','partial_failed','cancelled']|None=None,s:AsyncSession=Depends(get_sqlite_session)):
     filters=[]
     if model_name and model_name.strip(): filters.append(RiskRun.model_name.contains(model_name.strip(),autoescape=True))
     if version_number is not None: filters.append(RiskRun.version_number==version_number)
@@ -147,6 +154,32 @@ async def cancel(run_id:str,s:AsyncSession=Depends(get_sqlite_session)):
     r=await get_or_404(s,RiskRun,run_id)
     await s.execute(update(RiskRun).where(RiskRun.id==run_id,RiskRun.status.in_(['queued','running'])).values(cancel_requested=True))
     await s.execute(update(RiskRun).where(RiskRun.id==run_id,RiskRun.status=='queued').values(status='cancelled',stage='已取消',ended_at=beijing_now()))
+    await s.execute(update(RiskBatch).where(RiskBatch.run_id==run_id,RiskBatch.status.in_(['queued','retry_wait'])).values(status='cancelled',ended_at=beijing_now()))
+    await s.refresh(r)
+    if r.cancel_requested:
+        from app.services.risk_jobs import summarize
+        await summarize(s,r)
+    await s.commit();await s.refresh(r);return dump(r)
+
+@router.get('/runs/{run_id}/batches',dependencies=[Depends(guard)])
+async def batch_list(run_id:str,page:int=Query(1,ge=1),page_size:int=Query(20,ge=1,le=200),s:AsyncSession=Depends(get_sqlite_session)):
+    await get_or_404(s,RiskRun,run_id)
+    return await paged(s,RiskBatch,[RiskBatch.run_id==run_id],page,page_size)
+
+@router.get('/batches/{batch_id}/attempts',dependencies=[Depends(guard)])
+async def attempts(batch_id:int,s:AsyncSession=Depends(get_sqlite_session)):
+    await get_or_404(s,RiskBatch,batch_id)
+    return [dump(r) for r in (await s.scalars(select(RiskBatchAttempt).where(RiskBatchAttempt.batch_id==batch_id).order_by(RiskBatchAttempt.number))).all()]
+
+@router.post('/runs/{run_id}/retry',dependencies=[Depends(guard)])
+async def retry_failed(run_id:str,s:AsyncSession=Depends(get_sqlite_session)):
+    if not get_settings().RISK_RUN_ENABLED: raise HTTPException(409,'当前已暂停模型运行')
+    r=await get_or_404(s,RiskRun,run_id)
+    if r.mode=='formal' and not get_settings().RISK_SOURCE_KEY_VERIFIED: raise HTTPException(409,'请先核实源事件键')
+    changed=await s.execute(update(RiskRun).where(RiskRun.id==run_id,RiskRun.status.in_(['failed','partial_failed'])).values(status='queued',error=None,ended_at=None,cancel_requested=False,stage='等待失败批次补跑'))
+    if not changed.rowcount: raise HTTPException(409,'只可补跑失败或部分失败的任务')
+    rows=await s.execute(update(RiskBatch).where(RiskBatch.run_id==run_id,RiskBatch.status=='failed').values(status='queued',retry_at=0,error=None,token=None))
+    if not rows.rowcount: raise HTTPException(409,'没有可补跑批次，历史任务请新建运行')
     await s.commit();await s.refresh(r);return dump(r)
 
 @router.get('/runs/{run_id}/items',dependencies=[Depends(guard)])
@@ -179,7 +212,9 @@ async def alert_detail(alert_id:int,s:AsyncSession=Depends(get_sqlite_session)):
         .order_by(RiskAlert.event_time.desc()).limit(20))).all()
     clues=(await s.scalars(select(AuditClue).join(RiskClueLink,RiskClueLink.clue_id==AuditClue.id)
         .where(RiskClueLink.alert_id==alert_id))).all()
-    return dict(**dump(alert),first_evidence=dump(first),first_run=dump(run),
+    version_count=await s.scalar(select(func.count(func.distinct(RiskRun.version_id))).select_from(RiskOccurrence)
+        .join(RiskItem,RiskItem.id==RiskOccurrence.item_id).join(RiskRun,RiskRun.id==RiskItem.run_id).where(RiskOccurrence.alert_id==alert_id))
+    return dict(**dump(alert),historical_cross_version=bool(version_count>1),first_evidence=dump(first),first_run=dump(run),
         occurrences=[dump(o) for o in occurrences],history=[dump(h) for h in history],
         actions=[dump(a) for a in (await s.scalars(select(RiskAction).where(RiskAction.alert_id==alert_id).order_by(RiskAction.id))).all()],
         attachments=[dump(a) for a in (await s.scalars(select(RiskAttachment).where(RiskAttachment.alert_id==alert_id))).all()],
@@ -269,4 +304,4 @@ async def dashboard(s:AsyncSession=Depends(get_sqlite_session)):
     return dict(statuses=statuses,conclusions=conclusions,models=[dict(name=n,total=c) for n,c in models],
         trends=[dict(date=d,total=c) for d,c in reversed(trends)],closed=closed,confirmed=confirmed,
         confirmed_rate=round(confirmed/closed*100,1) if closed else None,
-        failed_runs=await s.scalar(select(func.count()).select_from(RiskRun).where(RiskRun.status=='failed')))
+        failed_runs=await s.scalar(select(func.count()).select_from(RiskRun).where(RiskRun.status.in_(['failed','partial_failed']))))

@@ -1,0 +1,18 @@
+# 独立风险后台；与既有 shenji API 服务共用环境和 SQLite。
+[Unit]
+Description=Shenji risk scheduler and serial batch worker
+After=network.target shenji.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/shenji/backend
+Environment="PATH=/opt/shenji/venv/bin"
+Environment="LANG=zh_CN.UTF-8"
+ExecStart=/opt/shenji/venv/bin/python -m app.risk_worker
+Restart=always
+RestartSec=5
+TimeoutStopSec=50
+
+[Install]
+WantedBy=multi-user.target
